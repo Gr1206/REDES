@@ -1,0 +1,21 @@
+#ifndef COMMANDS_H
+#define COMMANDS_H
+
+#include "app_state.h"
+
+
+typedef void (*function_handler)(char *args, AppState *state, int *running);
+
+typedef struct {
+    const char function_name[128];    // TODO: const - with or without?
+    function_handler function;
+} Command;
+
+const Command *find_command(const char *name);
+
+void handle_login(char *args, AppState *state, int *running);
+void handle_logout(char *args, AppState *state, int *running);
+void handle_unregister(char *args, AppState *state, int *running);
+void handle_exit(char *args, AppState *state, int *running);
+
+#endif
