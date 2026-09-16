@@ -10,13 +10,17 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include "user.h"
+#include "commands.h"
+
 #define MAX_ARGS 10
 
-typedef struct User { //so vou dar assign depois do login ser estabelecido
-    char UID[7];
-    char password[9];
-    int loggedIn;
-};
+// EDIT: Passei esta struct para um módulo user.h (para usar em commands.h, p.ex.!)
+// typedef struct User { //so vou dar assign depois do login ser estabelecido
+//     char UID[7];
+//     char password[9];
+//     int loggedIn;
+// } User;
 
 void controlledExit(int socket_fd, int exit_code, struct addrinfo *res) {
     //limpar memoria
@@ -120,6 +124,7 @@ int main(int argc, char *argv[]){
     if (fd == -1) {
         perror("Erro ao criar socket");
         controlledExit(fd, 1, res);
+        // TODO: Hmmm, exit() repetido? Também está em controlledExit! Confirmar!
         exit(1); //saída controlada talvez
     }
     memset(&hints, 0, sizeof(hints));
@@ -134,7 +139,10 @@ int main(int argc, char *argv[]){
 
     while(1){
         char line[256];
-        fgets(line, sizeof(line), stdin);
+        // EDIT: Adicionei a validação para o caso do stdin ficar indisponível 
+        // entretanto e line não ser inicializada!
+        if (fgets(line, sizeof(line), stdin) == NULL)
+            break;
 
         //separar por espaços 
         argcount = 0;
@@ -153,13 +161,14 @@ int main(int argc, char *argv[]){
         char *command = args[0];
         //para cada comando verificar se recebeu o número certo de argumentos
         if(strcmp(command, "login") == 0) {
-            if(argcount != 3) {
+            if(argcount != 4) {     // EDIT: Alterei aqui para 4 - por causa da peerport!
                 printf("Número de argumentos inválido: login UID password\n");
                 continue;
             }
             //chamar função de login
-            if(checkUID(args[1]) && checkPassword(args[2])){
-                // login(args[1], args[2]);
+            // EDIT: Acrescentei aqui uma lógica meio martelada para a peerport (só para funcionar!)
+            if(checkUID(args[1]) && checkPassword(args[2]) && checkPort(atoi(args[3]))){
+                login(fd, res, &user, args[1], args[2], args[3]);
             } else {
                 printf("Formato de UID ou Password inválido\n");
             }
@@ -169,8 +178,7 @@ int main(int argc, char *argv[]){
                 printf("Número de argumentos inválido: unregister\n");
                 continue;
             }
-
-            //unregister(args[1]);
+            unregister(fd, res, &user);
 
         } else if(strcmp(command, "logout") == 0) {
             // logout
@@ -178,8 +186,7 @@ int main(int argc, char *argv[]){
                 printf("Número de argumentos inválido: logout\n");
                 continue;
             }
-            
-            //logout(arg[1])
+            logout(fd, res, &user);
 
         } else if(strcmp(command, "exit") == 0) {
             if(argcount != 1){
