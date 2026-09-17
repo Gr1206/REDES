@@ -12,6 +12,7 @@
 #include <signal.h>
 #include "user.h"
 #include "commands.h"
+#include "app_state.h"
 
 #define MAX_ARGS 10
 
@@ -58,13 +59,11 @@ int checkPort(int port){
 }
 
 int main(int argc, char *argv[]){
-    struct User user = {"", "", 0}; //provavelemnte tem de ser char
-    int peerport = 0;
+    struct User user = {"", "", 0}; 
+    AppState state = {user, 0, NULL, -1}; //default
     char* DSIP = "193.136.138.142"; //default 
     char* DSPORT = "59000"; //default
-    int fd; //socket fd
-    struct addrinfo hints, *res = NULL; //para n dar erro no exit
-    struct sockaddr_in server_addr;
+    struct addrinfo hints;
 
     char *args[MAX_ARGS];
     int argcount = 0;
@@ -88,7 +87,7 @@ int main(int argc, char *argv[]){
         }   
         switch (argv[i][1]){
             case 'm':
-                peerport = atoi(argv[i+1]);
+                state.peer_tcp_port = atoi(argv[i+1]);
                 break;
             case 'n':
                 DSIP = argv[i+1];
@@ -102,31 +101,31 @@ int main(int argc, char *argv[]){
         }
     }
 
-    if (peerport == 0) {
+    if (state.peer_tcp_port == 0) {
         printf("Porta do peer é obrigatória\n");
         exit(1);
     }
 
-    if (!checkPort(peerport)) {
+    if (!checkPort(state.peer_tcp_port)) {
         printf("Porta do peer inválida\n");
         exit(1);
     }
 
-      
-    fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd == -1) {
+    state.udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (state.udp_fd == -1) {
         perror("Erro ao criar socket");
-        controlledExit(fd, 1, res);
+        controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; //UDP
 
-    int errcode = getaddrinfo(DSIP, DSPORT, &hints, &res);
+
+    int errcode = getaddrinfo(DSIP, DSPORT, &hints, &state.ds_addr);
     if (errcode != 0) { //meter mensagem de erro
         fprintf(stderr, "Erro ao obter endereço\n");
-        controlledExit(fd, 1, res);
+        controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
     while(1){
@@ -135,8 +134,8 @@ int main(int argc, char *argv[]){
         // entretanto e line não ser inicializada!
         if (fgets(line, sizeof(line), stdin) == NULL) {
             if(stop_req) {
-                if(user.loggedIn) {
-                    logout(fd, res, &user);
+                if(state.user.loggedIn) {
+                    logout(state.udp_fd, state.ds_addr, &state.user);
                 }
                 printf("\nExiting\n");
                 break;
@@ -170,7 +169,7 @@ int main(int argc, char *argv[]){
 
             //EDIT : tirei a lógica, a peerport já está guardada, não está no arg do login
             if(checkUID(args[1]) && checkPassword(args[2])){
-                login(fd, res, &user, args[1], args[2], peerport);
+                login(state.udp_fd, state.ds_addr, &state.user, args[1], args[2], state.peer_tcp_port);
             } else {
                 printf("Formato de UID ou Password inválido\n");
             }
@@ -180,7 +179,7 @@ int main(int argc, char *argv[]){
                 printf("Número de argumentos inválido: unregister\n");
                 continue;
             }
-            unregister(fd, res, &user);
+            unregister(state.udp_fd, state.ds_addr, &state.user);
 
         } else if(strcmp(command, "logout") == 0) {
             // logout
@@ -188,18 +187,18 @@ int main(int argc, char *argv[]){
                 printf("Número de argumentos inválido: logout\n");
                 continue;
             }
-            logout(fd, res, &user);
+            logout(state.udp_fd, state.ds_addr, &state.user);
 
         } else if(strcmp(command, "exit") == 0) {
             if(argcount != 1){
                 printf("Número de argumentos inválido: exit\n");
                 continue;
             }
-            if(user.loggedIn) {
+            if(state.user.loggedIn) {
                 printf("É necessário dar logout antes de sair\n");
                 continue;
             } else {
-                controlledExit(fd, 0, res);
+                controlledExit(state.udp_fd, 0, state.ds_addr);
                 //break; 
             }
         } else {
@@ -209,5 +208,5 @@ int main(int argc, char *argv[]){
     }   
     
     
-    controlledExit(fd, 0, res);
+    controlledExit(state.udp_fd, 0, state.ds_addr);
 }
