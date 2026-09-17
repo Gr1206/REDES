@@ -1,6 +1,6 @@
-
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -43,7 +43,6 @@
 //     return 0;
 // }
 
-// ssize_t send_and_recv(AppState *state, char *request, char *reply_buffer) {
 ssize_t send_and_recv(int fd, struct addrinfo *res, char *request, char *reply_buffer, size_t buffer_len) {
 
     ssize_t n;
@@ -58,12 +57,18 @@ ssize_t send_and_recv(int fd, struct addrinfo *res, char *request, char *reply_b
     }
 
     // recvfrom
+    // NOTE: SO_RCVTIMEO is set on the socket at startup, so recvfrom() 
+    // will fail with EAGAIN/EWOULDBLOCK after UDP_TIMEOUT seconds, rather 
+    // than blocking forever.
     addrlen = sizeof(from);
     n = recvfrom(fd, reply_buffer, buffer_len - 1, 0, 
                 (struct sockaddr *) &from, &addrlen);
     if (n == -1) {
-        // TODO: Não estamos a lidar com o timeout! Como o fazer?
-        perror("Erro ao receber pedido");
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            fprintf(stderr, "No reply from DS (timeout).\n");
+        } else {
+            perror("Erro ao receber pedido");
+        }
         return -1;
     }
 

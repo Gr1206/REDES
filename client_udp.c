@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -13,6 +14,7 @@
 #include "commands.h"
 #include "app_state.h"
 #include "client.h"
+#include "udp.h"
 
 #define MAX_ARGS 10
 
@@ -57,6 +59,11 @@ int checkPort(int port){
 }
 
 int main(int argc, char *argv[]){
+
+    // EDIT: Flush após cada '\n' (mesmo quando piped ou redireccionado). 
+    // Amanhã explico-te porque acrescentei isto!
+    setvbuf(stdout, NULL, _IOLBF, 0);
+
     struct User user = {"", "", 0}; 
     AppState state = {user, 0, NULL, -1}; //default
     char* DSIP = "193.136.138.142";       //default 
@@ -117,6 +124,15 @@ int main(int argc, char *argv[]){
         controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
+    // EDIT: Sem isto, recvfrom() bloqueia indefinidamente caso não se receba resposta do DS.
+    struct timeval tv;
+    tv.tv_sec = UDP_TIMEOUT;
+    tv.tv_usec = 0;
+    if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+        perror("Erro ao definir o timeout do socket UDP");
+        controlledExit(state.udp_fd, 1, state.ds_addr);
+    }
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; //UDP
@@ -130,6 +146,10 @@ int main(int argc, char *argv[]){
 
     while(1){
         char line[256];
+
+        printf("> ");
+        fflush(stdout); // para forçar o flush do buffer
+
         if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
             if(stop_req) {                              //handle SIGINT
                 if(state.user.loggedIn) {
