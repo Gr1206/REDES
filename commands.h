@@ -1,6 +1,8 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <netdb.h>
 
 #include "user.h"
@@ -21,7 +23,7 @@
 // void handle_unregister(char *args, AppState *state, int *running);
 // void handle_exit(char *args, AppState *state, int *running);
 
-void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, char* peerport);
+void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, int peerport);
 void logout(int fd, struct addrinfo *res, User *user);
 void unregister(int fd, struct addrinfo *res, User *user);
 

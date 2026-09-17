@@ -9,25 +9,21 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
+#include <signal.h>
 #include "user.h"
 #include "commands.h"
 
 #define MAX_ARGS 10
 
-// EDIT: Passei esta struct para um módulo user.h (para usar em commands.h, p.ex.!)
-// typedef struct User { //so vou dar assign depois do login ser estabelecido
-//     char UID[7];
-//     char password[9];
-//     int loggedIn;
-// } User;
+volatile sig_atomic_t stop_req = 0;
 
+void handle_sigint(int sig) {
+    (void)sig;
+    stop_req = 1;
+}
 void controlledExit(int socket_fd, int exit_code, struct addrinfo *res) {
-    //limpar memoria
-    //fechar sockets
-    //sair do programa
     if(res != NULL) freeaddrinfo(res);
-    close(socket_fd);
+    if(socket_fd >= 0) close(socket_fd); //verificar caso criação do socket falhe
     exit(exit_code);
 }
 
@@ -73,16 +69,13 @@ int main(int argc, char *argv[]){
     char *args[MAX_ARGS];
     int argcount = 0;
 
-/* TENHO DE VER SE TENGO DE DAR LOGOUT AQUI
     signal(SIGPIPE, SIG_IGN);
     struct sigaction sa;
-    sa.sa_handler = ;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0; 
+    memset(&sa, 0, sizeof(sa)); //incializa a zero
+    sa.sa_handler = handle_sigint; 
     sigaction(SIGINT, &sa, NULL); 
-     */
-
-     //caso passe flag sem nada
+    
+    //caso passe flag sem nada
     if (argc % 2 == 0) {
         printf("Formato correto: ./user -m peerport [-n DSIP] [-p DSport]\n");
         exit(1);
@@ -124,9 +117,8 @@ int main(int argc, char *argv[]){
     if (fd == -1) {
         perror("Erro ao criar socket");
         controlledExit(fd, 1, res);
-        // TODO: Hmmm, exit() repetido? Também está em controlledExit! Confirmar!
-        exit(1); //saída controlada talvez
     }
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; //UDP
@@ -141,8 +133,16 @@ int main(int argc, char *argv[]){
         char line[256];
         // EDIT: Adicionei a validação para o caso do stdin ficar indisponível 
         // entretanto e line não ser inicializada!
-        if (fgets(line, sizeof(line), stdin) == NULL)
+        if (fgets(line, sizeof(line), stdin) == NULL) {
+            if(stop_req) {
+                if(user.loggedIn) {
+                    logout(fd, res, &user);
+                }
+                printf("\nExiting\n");
+                break;
+            }
             break;
+        }
 
         //separar por espaços 
         argcount = 0;
@@ -161,14 +161,16 @@ int main(int argc, char *argv[]){
         char *command = args[0];
         //para cada comando verificar se recebeu o número certo de argumentos
         if(strcmp(command, "login") == 0) {
-            if(argcount != 4) {     // EDIT: Alterei aqui para 4 - por causa da peerport!
+            if(argcount != 3) {     // EDIT: tem de ser apenas 3 login UID password, isto tem a ver com o parsing do comando, a peerport já está guardada
                 printf("Número de argumentos inválido: login UID password\n");
                 continue;
             }
             //chamar função de login
             // EDIT: Acrescentei aqui uma lógica meio martelada para a peerport (só para funcionar!)
-            if(checkUID(args[1]) && checkPassword(args[2]) && checkPort(atoi(args[3]))){
-                login(fd, res, &user, args[1], args[2], args[3]);
+
+            //EDIT : tirei a lógica, a peerport já está guardada, não está no arg do login
+            if(checkUID(args[1]) && checkPassword(args[2])){
+                login(fd, res, &user, args[1], args[2], peerport);
             } else {
                 printf("Formato de UID ou Password inválido\n");
             }
@@ -207,5 +209,5 @@ int main(int argc, char *argv[]){
     }   
     
     
-    return 0;
+    controlledExit(fd, 0, res);
 }

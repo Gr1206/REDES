@@ -55,7 +55,8 @@ static const char *lookup_message(const StatusMsg *table, int n, const char *sta
 #define LOOKUP(table, status) lookup_message(table, sizeof(table) / sizeof(table[0]), status)
 
 
-void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, char* peerport) {
+
+void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, int peerport) {
     char request[128];  // TODO: Shall we set a default constant for max request length?
     char reply[128];  // TODO: Shall we set a default constant for max reply length?
     char reply_code[4];  // TODO: What about malformed values with length > 3?
@@ -69,7 +70,7 @@ void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, 
     // Validações do input (UID, password, etc) feitas no client_udp. Passar para aqui dentro eventualmente?
     // (...)
 
-    snprintf(request, sizeof(request), "LIN %s %s %s\n", uid, password, peerport);
+    snprintf(request, sizeof(request), "LIN %s %s %d\n", uid, password, peerport);
 
     if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
         return;
