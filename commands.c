@@ -9,11 +9,16 @@
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
 #define UNREGISTER_EXPECTED_REPLY_CODE  "RUR"
 
-#define STATUS_OK           "OK"
-#define STATUS_REG          "REG"
-#define STATUS_NOT_REG      "UNR"
-#define STATUS_WRONG_PWD    "WRP"
-#define STATUS_ERR          "ERR"
+#define STATUS_OK               "OK"
+#define STATUS_REG              "REG"
+#define STATUS_NOT_REG          "UNR"
+#define STATUS_WRONG_PWD        "WRP"
+#define STATUS_ERR              "ERR"
+
+#define MSG_WRONG_PWD           "incorrect password"
+#define MSG_UNREGISTERED_USER   "user not registered"
+#define MSG_USER_NOT_LOGGED_IN  "user not logged in"
+#define MSG_INVALID_REQUEST     "invalid request"
 
 
 // Mapeamento entre códigos de status e mensagens para o utilizador.
@@ -24,25 +29,25 @@ typedef struct {
 
 static const StatusMsg login_replies[] = {
     {STATUS_OK,  "successful login"},
-    {"NOK", "incorrect password"},
     {STATUS_REG, "new user registered"},
-    {STATUS_ERR, "invalid request"},
+    {"NOK", MSG_WRONG_PWD},
+    {STATUS_ERR, MSG_INVALID_REQUEST},
 };
 
 static const StatusMsg logout_replies[] = {
     {STATUS_OK,  "successful logout"},
-    {"NLG", "user not logged in"},
-    {STATUS_NOT_REG, "user not registered"},
-    {STATUS_WRONG_PWD, "incorrect password"},
-    {STATUS_ERR, "invalid request"},
+    {"NLG", MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
+    {STATUS_WRONG_PWD, MSG_WRONG_PWD},
+    {STATUS_ERR, MSG_INVALID_REQUEST},
 };
 
 static const StatusMsg unregister_replies[] = {
     {STATUS_OK,  "successful unregister"},
-    {"NOK", "unknown user"},
-    {STATUS_NOT_REG, "user not registered"},
-    {STATUS_WRONG_PWD, "incorrect password"},
-    {STATUS_ERR, "invalid request"},
+    {"NOK", MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
+    {STATUS_WRONG_PWD, MSG_WRONG_PWD},
+    {STATUS_ERR, MSG_INVALID_REQUEST},
 };
 
 static const char *lookup_message(const StatusMsg *table, int n, const char *status) {
@@ -91,8 +96,6 @@ void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, 
         user->loggedIn = 1;
         strncpy(user->UID, uid, UID_LEN + 1);
         strncpy(user->password, password, PWD_LEN + 1);
-        // TODO: Ainda falta tratar da peerport aqui!
-        // (...)
     }
 }
 
@@ -157,8 +160,5 @@ void unregister(int fd, struct addrinfo *res, User *user) {
     printf("%s\n", LOOKUP(unregister_replies, status));
 
     if (strcmp(status, STATUS_OK) == 0)
-        user->loggedIn = 0; // unregistering implies logging out...
-        // TODO: ... so shouldn't we also send a logout request at some point within this function?
-        // (...)
+        user->loggedIn = 0; // The DS logs the user out before unregistering it.
 }
-
