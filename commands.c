@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>
 
@@ -15,27 +14,31 @@
 #define STATUS_WRONG_PWD        "WRP"
 #define STATUS_ERR              "ERR"
 
-#define MSG_WRONG_PWD           "incorrect password"
-#define MSG_UNREGISTERED_USER   "user not registered"
-#define MSG_USER_NOT_LOGGED_IN  "user not logged in"
-#define MSG_INVALID_REQUEST     "invalid request"
+#define MSG_WRONG_PWD           "Incorrect password"
+#define MSG_UNREGISTERED_USER   "User not registered"
+#define MSG_USER_NOT_LOGGED_IN  "User not logged in"
+#define MSG_INVALID_REQUEST     "Invalid request"
+
+#define MAX_MSG_LENGTH 256
+#define STATUS_CODE_LENGTH 3  // Response status codes are <= 3 chars.
 
 
-// Mapeamento entre códigos de status e mensagens para o utilizador.
+// Mapping logic: Status code vs corresponding message (that gets displayed to the user).
 
 typedef struct { 
-    const char *status; const char *message; 
+    const char *status;
+    const char *message;
 } StatusMsg;
 
 static const StatusMsg login_replies[] = {
-    {STATUS_OK,  "successful login"},
-    {STATUS_REG, "new user registered"},
+    {STATUS_OK,  "Successful login"},
+    {STATUS_REG, "New user registered"},
     {"NOK", MSG_WRONG_PWD},
     {STATUS_ERR, MSG_INVALID_REQUEST},
 };
 
 static const StatusMsg logout_replies[] = {
-    {STATUS_OK,  "successful logout"},
+    {STATUS_OK,  "Successful logout"},
     {"NLG", MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
@@ -43,7 +46,7 @@ static const StatusMsg logout_replies[] = {
 };
 
 static const StatusMsg unregister_replies[] = {
-    {STATUS_OK,  "successful unregister"},
+    {STATUS_OK,  "Successful unregister"},
     {"NOK", MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
@@ -54,39 +57,36 @@ static const char *lookup_message(const StatusMsg *table, int n, const char *sta
     for (int i = 0; i < n; i++)
         if (strcmp(table[i].status, status) == 0)
             return table[i].message;
-    return "unrecognized reply from DS";
+    return "Unrecognized reply from DS";
 }
 
 #define LOOKUP(table, status) lookup_message(table, sizeof(table) / sizeof(table[0]), status)
 
 
-
 void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, int peerport) {
-    char request[128];  // TODO: Shall we set a default constant for max request length?
-    char reply[128];  // TODO: Shall we set a default constant for max reply length?
-    char reply_code[4];  // TODO: What about malformed values with length > 3?
-    char status[4];   // TODO: What about malformed values with length > 3?
+    char request[MAX_MSG_LENGTH + 1];
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1];
 
     if (user->loggedIn) {
-        printf("Already logged in. Logout first.\n");
+        printf("Already logged in. Logout first\n");
         return;
     }
-
-    // Validações do input (UID, password, etc) feitas no client_udp. Passar para aqui dentro eventualmente?
-    // (...)
 
     snprintf(request, sizeof(request), "LIN %s %s %d\n", uid, password, peerport);
 
     if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
         return;
 
-    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {    // TODO: String width limit TBC!
-        printf("Unexpected reply from DS after login attempt.\n");
+    // NOTE: Hardcoded error code size.
+    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
+        printf("Unexpected reply from DS after login attempt\n");
         return;
     }
     
     if (strcmp(reply_code, LOGIN_EXPECTED_REPLY_CODE) != 0) {
-        printf("Unexpected reply code obtained from DS after login attempt: %s.\n", reply_code);
+        printf("Unexpected reply code obtained from DS after login attempt: %s\n", reply_code);
         return;
     }
 
@@ -100,13 +100,13 @@ void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, 
 }
 
 void logout(int fd, struct addrinfo *res, User *user) {
-    char request[128];  // TODO: Shall we set a default constant for max request length?
-    char reply[128];  // TODO: Shall we set a default constant for max reply length?
-    char reply_code[4];  // TODO: What about malformed values with length > 3?
-    char status[4];   // TODO: What about malformed values with length > 3?
+    char request[MAX_MSG_LENGTH + 1];
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1];
 
     if (!user->loggedIn) {
-        printf("No user is currently logged in.\n");
+        printf("No user is currently logged in\n");
         return;
     }
 
@@ -115,13 +115,14 @@ void logout(int fd, struct addrinfo *res, User *user) {
     if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
         return;
 
-    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {    // TODO: String width limit TBC!
-        printf("Unexpected reply from DS after logout attempt.\n");
+    // NOTE: Hardcoded error code size.
+    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
+        printf("Unexpected reply from DS after logout attempt\n");
         return;
     }
 
     if (strcmp(reply_code, LOGOUT_EXPECTED_REPLY_CODE) != 0) {
-        printf("Unexpected reply code obtained from DS after logout attempt: %s.\n", reply_code);
+        printf("Unexpected reply code obtained from DS after logout attempt: %s\n", reply_code);
         return;
     }
 
@@ -132,13 +133,13 @@ void logout(int fd, struct addrinfo *res, User *user) {
 }
 
 void unregister(int fd, struct addrinfo *res, User *user) {
-    char request[128];  // TODO: Shall we set a default constant for max request length?
-    char reply[128];  // TODO: Shall we set a default constant for max reply length?
-    char reply_code[4];  // TODO: What about malformed values with length > 3?
-    char status[4];   // TODO: What about malformed values with length > 3?
+    char request[MAX_MSG_LENGTH + 1];
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1];
 
     if (!user->loggedIn) {
-        printf("No user is currently logged in.\n");
+        printf("No user is currently logged in\n");
         return;
     }
 
@@ -147,13 +148,14 @@ void unregister(int fd, struct addrinfo *res, User *user) {
     if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
         return;
 
-    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {    // TODO: String width limit TBC!
-        printf("Unexpected reply from DS after unregister attempt.\n");
+    // NOTE: Hardcoded error code size.
+    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
+        printf("Unexpected reply from DS after unregister attempt\n");
         return;
     }
 
     if (strcmp(reply_code, UNREGISTER_EXPECTED_REPLY_CODE) != 0) {
-        printf("Unexpected reply code obtained from DS after logout attempt: %s.\n", reply_code);
+        printf("Unexpected reply code obtained from DS after unregister attempt: %s\n", reply_code);
         return;
     }
 

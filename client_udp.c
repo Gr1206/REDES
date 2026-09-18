@@ -59,11 +59,8 @@ int checkPort(int port){
 }
 
 int main(int argc, char *argv[]){
-
-    // EDIT: Flush após cada '\n' (mesmo quando piped ou redireccionado). 
-    // Amanhã explico-te porque acrescentei isto!
-    setvbuf(stdout, NULL, _IOLBF, 0);
-
+    // Parses CLI args, sets up the UDP socket to the DS, and runs the
+    // interactive command loop.
     struct User user = {"", "", 0}; 
     AppState state = {user, 0, NULL, -1}; //default
     char* DSIP = "193.136.138.142";       //default 
@@ -117,26 +114,24 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    
     state.udp_fd = socket(AF_INET, SOCK_DGRAM, 0);  //udp socket
     if (state.udp_fd == -1) {
         perror("Error creating UDP socket");
         controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
-    // EDIT: Sem isto, recvfrom() bloqueia indefinidamente caso não se receba resposta do DS.
+    // Ensure recvfrom doesn't hang indefinitely if no response is received
     struct timeval tv;
     tv.tv_sec = UDP_TIMEOUT;
     tv.tv_usec = 0;
     if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
-        perror("Erro ao definir o timeout do socket UDP");
+        perror("Error setting UDP socket timeout");
         controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; //IPv4
     hints.ai_socktype = SOCK_DGRAM; //UDP
-
 
     int errcode = getaddrinfo(DSIP, DSPORT, &hints, &state.ds_addr);
     if (errcode != 0) { 
@@ -148,7 +143,7 @@ int main(int argc, char *argv[]){
         char line[256];
 
         printf("> ");
-        fflush(stdout); // para forçar o flush do buffer
+        fflush(stdout);                                 //to ensure the buffer gets flushed
 
         if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
             if(stop_req) {                              //handle SIGINT
@@ -161,15 +156,13 @@ int main(int argc, char *argv[]){
             break;
         }
 
-        //Parse the input into args
+        // Parse the input into args
         argcount = 0;
         char *token = strtok(line, " \n");
         while (token != NULL && argcount < MAX_ARGS) {
             args[argcount++] = token;
             token = strtok(NULL, " \n");
         }
-
-        
 
         if(argcount == 0) { //nothing written
             continue; 
@@ -196,7 +189,6 @@ int main(int argc, char *argv[]){
             unregister(state.udp_fd, state.ds_addr, &state.user);
 
         } else if(strcmp(command, "logout") == 0) {
-            // logout
             if(argcount != 1){
                 printf("Invalid number of arguments for logout: logout\n");
                 continue;
@@ -219,7 +211,6 @@ int main(int argc, char *argv[]){
         }
 
     }   
-    
     
     controlledExit(state.udp_fd, 0, state.ds_addr);
 }

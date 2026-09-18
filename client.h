@@ -1,10 +1,17 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+/**
+ * @file client.h
+ * @brief Client module: implements signal handling, controlled exit, and
+ * input validation.
+ */
+
 #include <netdb.h>
 
 /**
  * @brief Signal handler for SIGINT
+ * @param sig The signal number received
  */
 void handle_sigint(int sig);
 
@@ -15,7 +22,6 @@ void handle_sigint(int sig);
  * @param res The addrinfo structure to free (if allocated)
  */
 void controlledExit(int socket_fd, int exit_code, struct addrinfo *res);
-
 
 /**
  * @brief Check if the UID has 6 digits
@@ -31,14 +37,11 @@ int checkUID(char* uid);
  */
 int checkPassword(char* password);
 
-
 /**
  * @brief Check if the port is in the range 1-65535
  * @param port The port to check
  * @return 1 if the port is valid, 0 invalid
  */
 int checkPort(int port);
-
-
 
 #endif // CLIENT_H
