@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L
 TARGET = user
-SRCS = client_upd.c udp.c commands.c
+SRCS = client_udp.c udp.c commands.c
 OBJS = $(SRCS:.c=.o)
 
 all: $(TARGET)
