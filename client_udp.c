@@ -58,6 +58,53 @@ int checkPort(int port){
     return 1;
 }
 
+int checkChar(char c){
+    return (unsigned char)isalnum(c) || c == '_' || c == '-'; 
+}
+
+int checkFilename(char* filename){
+    int strsize = strlen(filename); 
+
+    if (strsize > 24 || strsize < 5) // nome.aaa extensão mais ponto final seriam 4 logo não pode haver fn menor que 5
+        return 0;
+
+    if (filename[strsize - 4] != '.') {
+        printf("ponto não está no sítio %c\n", filename[strsize - 4]);
+        return 0; //caso o ponto não esteja no sítio suposto
+    }
+    printf("FILENAME : %s\n", filename);
+    for (int char_index = 0; char_index < strsize - 4; char_index++){
+        if(!checkChar(filename[char_index])) {
+            printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
+            return 0;
+        }   
+    }
+
+    for (int i = strsize - 3; i < strsize; i++){ //verificar extensão alfanumérica.
+        if(!isalnum((unsigned char)filename[i])) {
+            printf("Char inválido na extensão %c\n", filename[i] );
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int checkLabel(char* label){
+    int labelLen = strlen(label);
+    printf("Label: %s\n", label);
+    if(labelLen < 1 || labelLen > 20) 
+        return 0;
+
+    for (int charIndex = 0; charIndex < labelLen; charIndex++){
+        if(!checkChar(label[charIndex])){
+            printf("Char inválido na label %c\n", label[charIndex]);
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
@@ -206,7 +253,37 @@ int main(int argc, char *argv[]){
             } else {
                 controlledExit(state.udp_fd, 0, state.ds_addr);
             }
-        } else {
+        } else if(strcmp(command, "publish") == 0) {
+            if(argcount != 3){
+                printf("Invalid number of arguments for publish: publish filename label\n");
+                continue;
+            }
+            printf("Arg2: %s\n", args[2]);
+            if(!checkFilename(args[1])){
+                printf("Invalid filename format\n");
+                continue;
+            }
+            if (!checkLabel(args[2])){
+                printf("Invalid label format\n");
+            }
+            //publish()
+        } else if(strcmp(command, "remove") == 0){
+            if(argcount != 2){
+                printf("Invalid number of arguments for remove: remove filename\n");
+                continue;
+            }
+            if(!checkFilename(args[1])){
+                printf("Invalid filename format\n");
+                continue;
+            }
+            //remove()
+        } else if(strcmp(command, "list") == 0){
+            if(argcount != 1){
+                printf("Invalid number of arguments for list: list\n");
+                continue;
+            }
+            //list
+        }else {
             printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-exit\n");
         }
 
