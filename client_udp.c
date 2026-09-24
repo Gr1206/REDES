@@ -10,13 +10,15 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <sys/stat.h>
 #include "user.h"
 #include "commands.h"
 #include "app_state.h"
 #include "client.h"
 #include "udp.h"
-
-#define MAX_ARGS 10
+#include "inputHandlers.h"
+#include "inputValidation.h" //vai sair daqui quando o parse do argv tiver noutro sitio
 
 volatile sig_atomic_t stop_req = 0;
 
@@ -31,79 +33,6 @@ void controlledExit(int socket_fd, int exit_code, struct addrinfo *res) {
     exit(exit_code);
 }
 
-int checkUID(char* uid){
-    int strsize = strlen(uid);
-    if(strsize != 6) return 0; 
-
-    for (int i = 0; i < strsize; i++){
-        if(!isdigit(uid[i]))
-            return 0;
-    }
-    return 1; 
-}
-
-int checkPassword(char* password){
-    int strsize = strlen(password);
-    if(strsize != 8) return 0;
-
-    for (int i = 0; i < strsize; i++){
-        if(!isalnum(password[i]))
-            return 0;
-    }
-    return 1; 
-}
-
-int checkPort(int port){
-    if(port < 1 || port > 65535) return 0;
-    return 1;
-}
-
-int checkChar(char c){
-    return (unsigned char)isalnum(c) || c == '_' || c == '-'; 
-}
-
-int checkFilename(char* filename){
-    int strsize = strlen(filename); 
-
-    if (strsize > 24 || strsize < 5) // nome.aaa extensão mais ponto final seriam 4 logo não pode haver fn menor que 5
-        return 0;
-
-    if (filename[strsize - 4] != '.') {
-        printf("ponto não está no sítio %c\n", filename[strsize - 4]);
-        return 0; //caso o ponto não esteja no sítio suposto
-    }
-    printf("FILENAME : %s\n", filename);
-    for (int char_index = 0; char_index < strsize - 4; char_index++){
-        if(!checkChar(filename[char_index])) {
-            printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
-            return 0;
-        }   
-    }
-
-    for (int i = strsize - 3; i < strsize; i++){ //verificar extensão alfanumérica.
-        if(!isalnum((unsigned char)filename[i])) {
-            printf("Char inválido na extensão %c\n", filename[i] );
-            return 0;
-        }
-    }
-    return 1;
-}
-
-int checkLabel(char* label){
-    int labelLen = strlen(label);
-    printf("Label: %s\n", label);
-    if(labelLen < 1 || labelLen > 20) 
-        return 0;
-
-    for (int charIndex = 0; charIndex < labelLen; charIndex++){
-        if(!checkChar(label[charIndex])){
-            printf("Char inválido na label %c\n", label[charIndex]);
-            return 0;
-        }
-    }
-
-    return 1;
-}
 
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
@@ -114,8 +43,6 @@ int main(int argc, char *argv[]){
     char* DSPORT = "59000";               //default
     struct addrinfo hints;
 
-    char *args[MAX_ARGS];
-    int argcount = 0;
 
     signal(SIGPIPE, SIG_IGN);            //ignore SIGPIPE
     struct sigaction sa;
@@ -124,11 +51,11 @@ int main(int argc, char *argv[]){
     sigaction(SIGINT, &sa, NULL);        //handle SIGINT
     
     // Check if user provided a correct number of arguments
+    //maybe meter numa função esta lógica tambem
     if (argc % 2 == 0) {
         printf("Incorrect format: ./user -m peerport [-n DSIP] [-p DSport]\n");
         exit(1);
     }
-
     // ./user -m peerport [-n DSIP] [-p DSport]
     for(int i = 1; i < argc; i += 2){
         if (argv[i][0] != '-') { //look for flag
@@ -186,6 +113,8 @@ int main(int argc, char *argv[]){
         controlledExit(state.udp_fd, 1, state.ds_addr);
     }
 
+    CommandParser parser;
+    parser.state = &state;
     while(1){
         char line[256];
 
@@ -204,85 +133,35 @@ int main(int argc, char *argv[]){
         }
 
         // Parse the input into args
-        argcount = 0;
+        parser.argcount = 0;
         char *token = strtok(line, " \n");
-        while (token != NULL && argcount < MAX_ARGS) {
-            args[argcount++] = token;
+        while (token != NULL && parser.argcount < MAX_ARGS) {
+            parser.args[parser.argcount++] = token;
             token = strtok(NULL, " \n");
         }
 
-        if(argcount == 0) { //nothing written
+        if(parser.argcount == 0) { //nothing written
             continue; 
         }
 
-        char *command = args[0];
+        char *command = parser.args[0];
+        parser.command = command;
         if(strcmp(command, "login") == 0) {
-            if(argcount != 3) {    
-                printf("Invalid number of arguments for login: login UID password\n");
-                continue;
-            }
+            parseLogin(&parser);
             
-            if(checkUID(args[1]) && checkPassword(args[2])){
-                login(state.udp_fd, state.ds_addr, &state.user, args[1], args[2], state.peer_tcp_port);
-            } else {
-                printf("UID or password format is invalid\n");
-            }
 
         } else if(strcmp(command, "unregister") == 0) {
-            if(argcount != 1){
-                printf("Invalid number of arguments for unregister: unregister\n");
-                continue;
-            }
-            unregister(state.udp_fd, state.ds_addr, &state.user);
-
+           parseUnreg(&parser);
         } else if(strcmp(command, "logout") == 0) {
-            if(argcount != 1){
-                printf("Invalid number of arguments for logout: logout\n");
-                continue;
-            }
-            logout(state.udp_fd, state.ds_addr, &state.user);
-
+            parseLogout(&parser);
         } else if(strcmp(command, "exit") == 0) {
-            if(argcount != 1){
-                printf("Invalid number of arguments for exit: exit\n");
-                continue;
-            }
-            if(state.user.loggedIn) {
-                printf("It is required to logout before exiting\n");
-                continue;
-            } else {
-                controlledExit(state.udp_fd, 0, state.ds_addr);
-            }
+            parseExit(&parser);
         } else if(strcmp(command, "publish") == 0) {
-            if(argcount != 3){
-                printf("Invalid number of arguments for publish: publish filename label\n");
-                continue;
-            }
-            printf("Arg2: %s\n", args[2]);
-            if(!checkFilename(args[1])){
-                printf("Invalid filename format\n");
-                continue;
-            }
-            if (!checkLabel(args[2])){
-                printf("Invalid label format\n");
-            }
-            //publish()
+            parsePublish(&parser);
         } else if(strcmp(command, "remove") == 0){
-            if(argcount != 2){
-                printf("Invalid number of arguments for remove: remove filename\n");
-                continue;
-            }
-            if(!checkFilename(args[1])){
-                printf("Invalid filename format\n");
-                continue;
-            }
-            //remove()
+            parseRemoveF(&parser);
         } else if(strcmp(command, "list") == 0){
-            if(argcount != 1){
-                printf("Invalid number of arguments for list: list\n");
-                continue;
-            }
-            //list
+            parseListF(&parser);
         }else {
             printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-exit\n");
         }

@@ -23,25 +23,7 @@ void handle_sigint(int sig);
  */
 void controlledExit(int socket_fd, int exit_code, struct addrinfo *res);
 
-/**
- * @brief Check if the UID has 6 digits
- * @param uid The UID to check
- * @return 1 if the UID is valid, 0 invalid 
- */
-int checkUID(char* uid);
 
-/**
- * @brief Check if the password has 8 alphanumeric chars
- * @param password The password to check
- * @return 1 if the password is valid, 0 invalid
- */
-int checkPassword(char* password);
 
-/**
- * @brief Check if the port is in the range 1-65535
- * @param port The port to check
- * @return 1 if the port is valid, 0 invalid
- */
-int checkPort(int port);
 
 #endif // CLIENT_H

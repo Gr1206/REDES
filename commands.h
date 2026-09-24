@@ -50,4 +50,12 @@ void logout(int fd, struct addrinfo *res, User *user);
  */
 void unregister(int fd, struct addrinfo *res, User *user);
 
+void publishFile();
+
+void removeFile();
+
+void listFiles();
+
+
+
 #endif // COMMANDS_H

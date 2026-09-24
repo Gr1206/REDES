@@ -164,3 +164,13 @@ void unregister(int fd, struct addrinfo *res, User *user) {
     if (strcmp(status, STATUS_OK) == 0)
         user->loggedIn = 0; // The DS logs the user out before unregistering it.
 }
+
+void publishFile(){
+    
+}
+
+void removeFile(){}
+
+void listFiles(){
+    //NÃO É PRECISO LOGIN!!!
+}
