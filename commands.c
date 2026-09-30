@@ -3,6 +3,7 @@
 
 #include "commands.h"
 #include "udp.h"
+#include "inputHandlers.h"
 
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
@@ -63,20 +64,21 @@ static const char *lookup_message(const StatusMsg *table, int n, const char *sta
 #define LOOKUP(table, status) lookup_message(table, sizeof(table) / sizeof(table[0]), status)
 
 
-void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, int peerport) {
+
+void login(CommandParser *parser) {
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_MSG_LENGTH + 1];
     char reply_code[STATUS_CODE_LENGTH + 1];
     char status[STATUS_CODE_LENGTH + 1];
 
-    if (user->loggedIn) {
+    if (parser->state->user.loggedIn) {
         printf("Already logged in. Logout first\n");
         return;
     }
 
-    snprintf(request, sizeof(request), "LIN %s %s %d\n", uid, password, peerport);
-
-    if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
+    snprintf(request, sizeof(request), "LIN %s %s %d\n", parser->args[1], parser->args[2], parser->state->peer_tcp_port);
+    //printf("Sending login request: %s", request);
+    if (send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
         return;
 
     // NOTE: Hardcoded error code size.
@@ -93,26 +95,26 @@ void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, 
     printf("%s\n", LOOKUP(login_replies, status));
 
     if (strcmp(status, STATUS_OK) == 0 || strcmp(status, STATUS_REG) == 0) {
-        user->loggedIn = 1;
-        strncpy(user->UID, uid, UID_LEN + 1);
-        strncpy(user->password, password, PWD_LEN + 1);
+        parser->state->user.loggedIn = 1;
+        strncpy(parser->state->user.UID, parser->args[1], UID_LEN + 1);
+        strncpy(parser->state->user.password, parser->args[2], PWD_LEN + 1);
     }
 }
 
-void logout(int fd, struct addrinfo *res, User *user) {
+void logout(CommandParser *parser) {
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_MSG_LENGTH + 1];
     char reply_code[STATUS_CODE_LENGTH + 1];
     char status[STATUS_CODE_LENGTH + 1];
 
-    if (!user->loggedIn) {
+    if (!parser->state->user.loggedIn) {
         printf("No user is currently logged in\n");
         return;
     }
 
-    snprintf(request, sizeof(request), "LOU %s %s\n", user->UID, user->password);
-
-    if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
+    snprintf(request, sizeof(request), "LOU %s %s\n", parser->state->user.UID, parser->state->user.password);
+    //printf("Sending logout request: %s", request);
+    if (send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
         return;
 
     // NOTE: Hardcoded error code size.
@@ -129,23 +131,23 @@ void logout(int fd, struct addrinfo *res, User *user) {
     printf("%s\n", LOOKUP(logout_replies, status));
 
     if (strcmp(status, STATUS_OK) == 0)
-        user->loggedIn = 0;
+        parser->state->user.loggedIn = 0;
 }
 
-void unregister(int fd, struct addrinfo *res, User *user) {
+void unregister(CommandParser *parser) {
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_MSG_LENGTH + 1];
     char reply_code[STATUS_CODE_LENGTH + 1];
     char status[STATUS_CODE_LENGTH + 1];
 
-    if (!user->loggedIn) {
+    if (!parser->state->user.loggedIn) {
         printf("No user is currently logged in\n");
         return;
     }
 
-    snprintf(request, sizeof(request), "UNR %s %s\n", user->UID, user->password);
+    snprintf(request, sizeof(request), "UNR %s %s\n", parser->state->user.UID, parser->state->user.password);
 
-    if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
+    if (send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
         return;
 
     // NOTE: Hardcoded error code size.
@@ -162,7 +164,7 @@ void unregister(int fd, struct addrinfo *res, User *user) {
     printf("%s\n", LOOKUP(unregister_replies, status));
 
     if (strcmp(status, STATUS_OK) == 0)
-        user->loggedIn = 0; // The DS logs the user out before unregistering it.
+        parser->state->user.loggedIn = 0; // The DS logs the user out before unregistering it.
 }
 
 void publishFile(){

@@ -11,6 +11,7 @@
 #include <netdb.h>
 
 #include "user.h"
+#include "inputHandlers.h"
 
 /**
  * @brief Performs a user login, registering the user upon the first login.
@@ -18,25 +19,18 @@
  * Sends a LIN request and, if successful (OK or REG), updates the user's 
  * logged in state, UID and password.
  *
- * @param fd The UDP socket file descriptor.
- * @param res The resolved DS address.
- * @param user The local user state to update on success.
- * @param uid The UID to log in with.
- * @param password The password to log in with.
- * @param peerport The TCP port this client accepts file transfers on.
+ * @param parser The command parser struct containing the command args & current app state
  */
-void login(int fd, struct addrinfo *res, User *user, char* uid, char* password, int peerport);
+void login(CommandParser *parser);
 
 /**
  * @brief Logs out the currently logged in user.
  *
  * Sends a LOU request and, if successful, clears the user's logged in state.
  *
- * @param fd The UDP socket file descriptor.
- * @param res The resolved DS address.
- * @param user The local user state to update on success.
+ * @param parser The command parser struct containing the command args & current app state
  */
-void logout(int fd, struct addrinfo *res, User *user);
+void logout(CommandParser *parser);
 
 /**
  * @brief Unregisters the currently logged in user.
@@ -44,11 +38,9 @@ void logout(int fd, struct addrinfo *res, User *user);
  * Sends a UNR request and, if successful, also clears the user's login state 
  * since the DS logs the user out as part of the unregistering process.
  *
- * @param fd The UDP socket file descriptor.
- * @param res The resolved DS address.
- * @param user The local user state to update on success.
+ * @param parser The command parser struct containing the command args & current app state
  */
-void unregister(int fd, struct addrinfo *res, User *user);
+void unregister(CommandParser *parser);
 
 void publishFile();
 

@@ -7,8 +7,8 @@
 #define MAX_FILESIZE (10LL * 1000 * 1000) //MANTEM EM 64 BITS
 
 typedef struct {
-    char *command;
-    char *args[MAX_ARGS];
+    char *command; //command executed in the cmd
+    char *args[MAX_ARGS]; //arguments frmo the cmd command
     int argcount;
     AppState *state;
 } CommandParser;

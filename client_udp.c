@@ -15,10 +15,10 @@
 #include "user.h"
 #include "commands.h"
 #include "app_state.h"
-#include "client.h"
 #include "udp.h"
 #include "inputHandlers.h"
 #include "inputValidation.h" //vai sair daqui quando o parse do argv tiver noutro sitio
+#include "client.h" // quero tentar mudar isto
 
 volatile sig_atomic_t stop_req = 0;
 
@@ -122,14 +122,13 @@ int main(int argc, char *argv[]){
         fflush(stdout);                                 //to ensure the buffer gets flushed
 
         if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
-            if(stop_req) {                              //handle SIGINT
-                if(state.user.loggedIn) {
+            /*if(stop_req) {                              //handle SIGINT
+                if(state.user.loggedIn) { //o prof não quer isto supostamente
                     logout(state.udp_fd, state.ds_addr, &state.user);
-                }
-                printf("\nExiting\n");
-                break;
-            }
+                } */
+            printf("\nExiting\n");
             break;
+        
         }
 
         // Parse the input into args
@@ -163,7 +162,7 @@ int main(int argc, char *argv[]){
         } else if(strcmp(command, "list") == 0){
             parseListF(&parser);
         }else {
-            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-exit\n");
+            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-exit\n");
         }
 
     }   
