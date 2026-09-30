@@ -42,9 +42,9 @@ void logout(CommandParser *parser);
  */
 void unregister(CommandParser *parser);
 
-void publishFile();
+void publishFile(CommandParser *parser, int fileSize);
 
-void removeFile();
+void removeFile(CommandParser *parser);
 
 void listFiles();
 

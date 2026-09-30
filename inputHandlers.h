@@ -42,12 +42,14 @@ int parseExit(CommandParser *parser);
 
 /**
  * @brief Parse the publish information, and calls publish protocol function
+ * @param parser The command parser containing the publish command and its arguments.
  * @return a definir
  */
 int parsePublish(CommandParser *parser);
 
 /**
  * @brief Parse the remove file information, and calls remove file protocol function
+ * @param parser The command parser containing the remove file command and its arguments.
  * @return a definir
  */
 int parseRemoveF(CommandParser *parser);

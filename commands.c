@@ -14,6 +14,8 @@
 #define STATUS_NOT_REG          "UNR"
 #define STATUS_WRONG_PWD        "WRP"
 #define STATUS_ERR              "ERR"
+#define STATUS_NOK              "NOK"
+#define STATUS_NOT_LOGGED_IN    "NLG"
 
 #define MSG_WRONG_PWD           "Incorrect password"
 #define MSG_UNREGISTERED_USER   "User not registered"
@@ -34,13 +36,13 @@ typedef struct {
 static const StatusMsg login_replies[] = {
     {STATUS_OK,  "Successful login"},
     {STATUS_REG, "New user registered"},
-    {"NOK", MSG_WRONG_PWD},
+    {STATUS_NOK, MSG_WRONG_PWD},
     {STATUS_ERR, MSG_INVALID_REQUEST},
 };
 
 static const StatusMsg logout_replies[] = {
     {STATUS_OK,  "Successful logout"},
-    {"NLG", MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
     {STATUS_ERR, MSG_INVALID_REQUEST},
@@ -48,10 +50,26 @@ static const StatusMsg logout_replies[] = {
 
 static const StatusMsg unregister_replies[] = {
     {STATUS_OK,  "Successful unregister"},
-    {"NOK", MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOK, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
     {STATUS_ERR, MSG_INVALID_REQUEST},
+};
+
+static const StatusMsg publish_replies[] = {
+    {STATUS_OK,  "Successful publish"},
+    {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
+    {STATUS_WRONG_PWD, MSG_WRONG_PWD},
+    {STATUS_NOK, "File could not be published"},
+};
+
+static const StatusMsg remove_replies[] = {
+    {STATUS_OK, "Sucessful remove"},
+    {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
+    {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
+    {STATUS_WRONG_PWD, MSG_WRONG_PWD},
+    {STATUS_NOK, "This file was not published by you"}, //nao existe tb ?
 };
 
 static const char *lookup_message(const StatusMsg *table, int n, const char *status) {
@@ -167,11 +185,45 @@ void unregister(CommandParser *parser) {
         parser->state->user.loggedIn = 0; // The DS logs the user out before unregistering it.
 }
 
-void publishFile(){
+//dar refactor ao argumento fileSIze
+void publishFile(CommandParser *parser, int fileSize) {
+    char request[MAX_MSG_LENGTH + 1];
+    //char reply[MAX_MSG_LENGTH + 1];
+    //char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1];
     
+    if(!parser->state->user.loggedIn){
+        printf("No user is currently logged in\n");
+        return;
+    }
+
+    
+    snprintf(request, sizeof(request), "PUB %s %s %s %d %s\n", 
+    parser->state->user.UID, parser->state->user.password, parser->args[1], fileSize, parser->args[2]);
+    printf("Sending publish request: %s", request);
+    /* if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
+        return;
+    */
+    //printf("Reply from DS: %s\n", LOOKUP(publish_replies, status));
+    
+    //verificar replies anomalas por parte do DS
 }
 
-void removeFile(){}
+void removeFile(CommandParser *parser){
+    char request[MAX_MSG_LENGTH + 1];
+    /* char reply[MAX_MSG_LENGTH + 1];
+    //char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1]; */
+    
+    if(!parser->state->user.loggedIn){
+        printf("No user is currently logged in\n");
+        return;
+    }
+
+    snprintf(request, sizeof(request), "REM %s %s %s\n", parser->state->user.UID, parser->state->user.password, parser->args[1]);
+    printf("Sending remove file request: %s", request);
+    //fazer o send
+}
 
 void listFiles(){
     //NÃO É PRECISO LOGIN!!!

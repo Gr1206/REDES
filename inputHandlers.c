@@ -67,12 +67,14 @@ int parsePublish(CommandParser *parser){
     if (!checkLabel(parser->args[2])){
         printf("Invalid label format\n");
     } //DAR refactor completo a este código
-    if(fileExists(parser->args[1]) == -1){
+    int result = fileExists(parser->args[1]);
+    if(result == -1){
         printf("File does not exist\n");
-    } else if(fileExists(parser->args[1]) == -2){
+    } else if(result == -2){
         printf("Invalid file size\n");
     }
-    //publishFile()
+    //mudar isto do result ser o fileSize, criar helper e chamar no publish func
+    publishFile(parser, result);
     
     
     return 1;
@@ -87,7 +89,7 @@ int parseRemoveF(CommandParser *parser){
         printf("Invalid filename format\n");
         return 0;
     }
-    //removeFile()
+    removeFile(parser);
     return 1;
 }
 
