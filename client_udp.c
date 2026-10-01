@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
 #include <signal.h>
 #include <stdbool.h>
 #include <sys/stat.h>
@@ -16,6 +17,7 @@
 #include "commands.h"
 #include "app_state.h"
 #include "udp.h"
+#include "tcp.h"
 #include "inputHandlers.h"
 #include "inputValidation.h" //vai sair daqui quando o parse do argv tiver noutro sitio
 #include "client.h" // quero tentar mudar isto
@@ -27,9 +29,10 @@ void handle_sigint(int sig) {
     stop_req = 1; //SIGINT received
 }
 
-void controlledExit(int socket_fd, int exit_code, struct addrinfo *res) {
-    if(res != NULL) freeaddrinfo(res);
-    if(socket_fd >= 0) close(socket_fd); //close the socket if it was opened
+void controlledExit(AppState *state, int exit_code) {
+    if(state->ds_addr != NULL) freeaddrinfo(state->ds_addr);
+    if(state->ds_tcp_addr != NULL) freeaddrinfo(state->ds_tcp_addr);
+    if(state->udp_fd >= 0) close(state->udp_fd); //close the socket if still open
     exit(exit_code);
 }
 
@@ -38,7 +41,7 @@ int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
     struct User user = {"", "", 0}; 
-    AppState state = {user, 0, NULL, -1}; //default
+    AppState state = {user, 0, NULL, NULL, -1}; //default   // TODO: To look into! We should initialize this differently!
     char* DSIP = "193.136.138.142";       //default 
     char* DSPORT = "59000";               //default
     struct addrinfo hints;
@@ -87,11 +90,14 @@ int main(int argc, char *argv[]){
         printf("Invalid peer port\n");
         exit(1);
     }
-
+    
+    // Initial UDP setup
+    // TODO: Logic to be abstracted within the udp module with a udp_setup func, 
+    // analogous to tcp_setup!
     state.udp_fd = socket(AF_INET, SOCK_DGRAM, 0);  //udp socket
     if (state.udp_fd == -1) {
         perror("Error creating UDP socket");
-        controlledExit(state.udp_fd, 1, state.ds_addr);
+        controlledExit(&state, 1);
     }
 
     // Ensure recvfrom doesn't hang indefinitely if no response is received
@@ -100,7 +106,7 @@ int main(int argc, char *argv[]){
     tv.tv_usec = 0;
     if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
         perror("Error setting UDP socket timeout");
-        controlledExit(state.udp_fd, 1, state.ds_addr);
+        controlledExit(&state, 1);
     }
 
     memset(&hints, 0, sizeof(hints));
@@ -110,7 +116,12 @@ int main(int argc, char *argv[]){
     int errcode = getaddrinfo(DSIP, DSPORT, &hints, &state.ds_addr);
     if (errcode != 0) { 
         fprintf(stderr, "Error getting address\n"); 
-        controlledExit(state.udp_fd, 1, state.ds_addr);
+        controlledExit(&state, 1);
+    }
+
+    // Initial TCP setup
+    if (tcp_setup(DSIP, DSPORT, &state.ds_tcp_addr) != 0) {
+        controlledExit(&state, 1);
     }
 
     CommandParser parser;
@@ -147,8 +158,6 @@ int main(int argc, char *argv[]){
         parser.command = command;
         if(strcmp(command, "login") == 0) {
             parseLogin(&parser);
-            
-
         } else if(strcmp(command, "unregister") == 0) {
            parseUnreg(&parser);
         } else if(strcmp(command, "logout") == 0) {
@@ -161,11 +170,13 @@ int main(int argc, char *argv[]){
             parseRemoveF(&parser);
         } else if(strcmp(command, "list") == 0){
             parseListF(&parser);
-        }else {
+        } else if(strcmp(command, "versions") == 0){
+            parseVersionsF(&parser);
+        } else {
             printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-exit\n");
         }
 
     }   
     
-    controlledExit(state.udp_fd, 0, state.ds_addr);
+    controlledExit(&state, 0);
 }
