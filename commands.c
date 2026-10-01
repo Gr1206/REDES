@@ -8,6 +8,8 @@
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
 #define UNREGISTER_EXPECTED_REPLY_CODE  "RUR"
+#define PUBLISH_EXPECTED_REPLY_CODE     "RPB"
+#define REMOVE_EXPECTED_REPLY_CODE      "RRM"
 
 #define STATUS_OK               "OK"
 #define STATUS_REG              "REG"
@@ -57,19 +59,21 @@ static const StatusMsg unregister_replies[] = {
 };
 
 static const StatusMsg publish_replies[] = {
-    {STATUS_OK,  "Successful publish"},
+    {STATUS_OK,  "Successful publication"},
     {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
-    {STATUS_NOK, "File could not be published"},
+    {STATUS_NOK, "Unsuccessful publication"},
+    {STATUS_ERR, MSG_INVALID_REQUEST}
 };
 
 static const StatusMsg remove_replies[] = {
-    {STATUS_OK, "Sucessful remove"},
+    {STATUS_OK, "Sucessful removal"},
     {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
     {STATUS_NOK, "This file was not published by you"}, //nao existe tb ?
+    {STATUS_ERR, MSG_INVALID_REQUEST}
 };
 
 static const char *lookup_message(const StatusMsg *table, int n, const char *status) {
@@ -188,8 +192,8 @@ void unregister(CommandParser *parser) {
 //dar refactor ao argumento fileSIze
 void publishFile(CommandParser *parser, int fileSize) {
     char request[MAX_MSG_LENGTH + 1];
-    //char reply[MAX_MSG_LENGTH + 1];
-    //char reply_code[STATUS_CODE_LENGTH + 1];
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
     char status[STATUS_CODE_LENGTH + 1];
     
     if(!parser->state->user.loggedIn){
@@ -200,20 +204,33 @@ void publishFile(CommandParser *parser, int fileSize) {
     
     snprintf(request, sizeof(request), "PUB %s %s %s %d %s\n", 
     parser->state->user.UID, parser->state->user.password, parser->args[1], fileSize, parser->args[2]);
-    printf("Sending publish request: %s", request);
-    /* if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
+    //printf("Sending publish request: %s", request);
+    if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
+        printf("Failed to send publish request or receive reply from DS\n");
         return;
-    */
-    //printf("Reply from DS: %s\n", LOOKUP(publish_replies, status));
+    }
+    
+    //printf("Reply from DS: %s", reply);
+    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
+        printf("Unexpected reply from DS after publish attempt\n");
+        return;
+    }
+
+    if (strcmp(reply_code, PUBLISH_EXPECTED_REPLY_CODE) != 0) {
+        printf("Unexpected reply code obtained from DS after publish attempt: %s\n", reply_code);
+        return;
+    }
+
+    printf("%s\n", LOOKUP(publish_replies, status));
     
     //verificar replies anomalas por parte do DS
 }
 
 void removeFile(CommandParser *parser){
     char request[MAX_MSG_LENGTH + 1];
-    /* char reply[MAX_MSG_LENGTH + 1];
-    //char reply_code[STATUS_CODE_LENGTH + 1];
-    char status[STATUS_CODE_LENGTH + 1]; */
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1]; 
     
     if(!parser->state->user.loggedIn){
         printf("No user is currently logged in\n");
@@ -223,6 +240,23 @@ void removeFile(CommandParser *parser){
     snprintf(request, sizeof(request), "REM %s %s %s\n", parser->state->user.UID, parser->state->user.password, parser->args[1]);
     printf("Sending remove file request: %s", request);
     //fazer o send
+    if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
+        printf("Failed to send remove file request or receive reply from DS\n");
+        return;
+    }
+
+    if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
+        printf("Unexpected reply from DS after remove attempt\n");
+        return;
+    }
+
+    if (strcmp(reply_code, REMOVE_EXPECTED_REPLY_CODE) != 0) {
+        printf("Unexpected reply code obtained from DS after remove attempt: %s\n", reply_code);
+        return;
+    }
+
+    printf("%s\n", LOOKUP(remove_replies, status));
+    
 }
 
 void listFiles(){

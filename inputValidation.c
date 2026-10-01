@@ -43,7 +43,7 @@ int checkFilename(char* filename){
         printf("ponto não está no sítio %c\n", filename[strsize - 4]);
         return 0; //caso o ponto não esteja no sítio suposto
     }
-    printf("FILENAME : %s\n", filename);
+    //printf("FILENAME : %s\n", filename);
     for (int char_index = 0; char_index < strsize - 4; char_index++){
         if(!checkChar(filename[char_index])) {
             printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
@@ -62,7 +62,7 @@ int checkFilename(char* filename){
 
 int checkLabel(char* label){
     int labelLen = strlen(label);
-    printf("Label: %s\n", label);
+    //printf("Label: %s\n", label);
     if(labelLen < 1 || labelLen > 20) 
         return 0;
 
@@ -87,6 +87,7 @@ int fileExists(const char *path){
     //return -2 caso o fileseize seja inválido
     //em caso de sucesso return filesize
     struct stat fileInfo;
+    
     int res = stat(path, &fileInfo); //SAves info on buffer
     if (res != 0){
         return -1;

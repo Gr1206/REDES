@@ -68,10 +68,14 @@ int parsePublish(CommandParser *parser){
         printf("Invalid label format\n");
     } //DAR refactor completo a este código
     int result = fileExists(parser->args[1]);
+    //printf("Result of fileExists: %d\n", result);
+
     if(result == -1){
         printf("File does not exist\n");
+        return 0;
     } else if(result == -2){
         printf("Invalid file size\n");
+        return 0;
     }
     //mudar isto do result ser o fileSize, criar helper e chamar no publish func
     publishFile(parser, result);
