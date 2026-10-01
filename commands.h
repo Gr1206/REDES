@@ -50,4 +50,29 @@ void logout(int fd, struct addrinfo *res, User *user);
  */
 void unregister(int fd, struct addrinfo *res, User *user);
 
+/**
+ * @brief Requests the list of peers sharing a given resource.
+ *
+ * Sends a VRS request over TCP and, if successful, prints each peer's
+ * UID, file size, label, publication time, and current availability. Unlike 
+ * most of the other commands, this command does not require an active login 
+ * session.
+ *
+ * @param tcp_addr The resolved DS TCP address.
+ * @param filename The resource name to request for.
+ */
+void versions(struct addrinfo *tcp_addr, const char *filename);
+
+/**
+ * @brief Requests the list of resources currently known in the network.
+ *
+ * Sends a LST request over UDP and, if successful, prints a list of shared 
+ * filenames - up to a maximum of 50. Unlike most of the other commands, this 
+ * command does not require an active login session.
+ *
+ * @param fd The UDP socket file descriptor.
+ * @param res The resolved DS address.
+ */
+void list(int fd, struct addrinfo *res);
+ 
 #endif // COMMANDS_H
