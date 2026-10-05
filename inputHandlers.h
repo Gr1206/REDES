@@ -55,10 +55,18 @@ int parsePublish(CommandParser *parser);
 int parseRemoveF(CommandParser *parser);
 
 /**
- * @brief Parse the list file information, and calls list file protocol function
+ * @brief Parses the list file command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
  * @return a definir
  */
 int parseListF(CommandParser *parser);
+
+/**
+ * @brief Parses the file versions command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
+ * @return a definir
+ */
+int parseVersionsF(CommandParser *parser);
 
 
 #endif

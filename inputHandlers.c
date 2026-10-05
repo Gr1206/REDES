@@ -47,7 +47,7 @@ int parseExit(CommandParser *parser){
         printf("It is required to logout before exiting\n");
         return 0;
     } else {
-        controlledExit(parser->state->udp_fd, 0, parser->state->ds_addr);
+        controlledExit(parser->state, 0);
         //ainda tenho de pensar neste !
     }
     
@@ -102,5 +102,19 @@ int parseListF(CommandParser *parser){
         printf("Invalid number of arguments for list: list\n");
         return 0;
     }
+    listFiles(parser);
+    return 1;
+}
+
+int parseVersionsF(CommandParser *parser){
+    if(parser->argcount != 2){
+        printf("Invalid number of arguments for versions: versions\n");
+        return 0;
+    }
+    if(!checkFilename(parser->args[1])){
+        printf("Invalid filename format\n");
+        return 0;
+    }
+    versionsFile(parser, parser->args[1]);
     return 1;
 }
