@@ -238,7 +238,7 @@ void removeFile(CommandParser *parser){
     }
 
     snprintf(request, sizeof(request), "REM %s %s %s\n", parser->state->user.UID, parser->state->user.password, parser->args[1]);
-    printf("Sending remove file request: %s", request);
+    //printf("Sending remove file request: %s", request);
     //fazer o send
     if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
         printf("Failed to send remove file request or receive reply from DS\n");
