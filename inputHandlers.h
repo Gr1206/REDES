@@ -4,7 +4,6 @@
 #include "app_state.h"
 
 #define MAX_ARGS 10
-#define MAX_FILESIZE (10LL * 1000 * 1000) //MANTEM EM 64 BITS
 
 typedef struct {
     char *command; //command executed in the cmd

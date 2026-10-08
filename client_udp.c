@@ -173,7 +173,7 @@ int main(int argc, char *argv[]){
         } else if(strcmp(command, "versions") == 0){
             parseVersionsF(&parser);
         } else {
-            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-exit\n");
+            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\nversions\n-exit\n");
         }
 
     }   
