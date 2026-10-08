@@ -66,6 +66,7 @@ int parsePublish(CommandParser *parser){
     }
     if (!checkLabel(parser->args[2])){
         printf("Invalid label format\n");
+        return 0;
     } //DAR refactor completo a este código
     int result = fileExists(parser->args[1]);
     //printf("Result of fileExists: %d\n", result);
