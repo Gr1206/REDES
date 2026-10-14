@@ -1,10 +1,14 @@
+#include <arpa/inet.h>
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "commands.h"
 #include "udp.h"
 #include "tcp.h"
 #include "inputHandlers.h"
+#include "inputValidation.h"
 
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
@@ -13,6 +17,7 @@
 #define REMOVE_EXPECTED_REPLY_CODE      "RRM"
 #define LIST_EXPECTED_REPLY_CODE        "RLS"
 #define VERSIONS_EXPECTED_REPLY_CODE    "RVR"
+#define WHERE_EXPECTED_REPLY_CODE       "RWH"
 
 #define STATUS_OK               "OK"
 #define STATUS_REG              "REG"
@@ -40,6 +45,11 @@
 #define FILENAME_MAX_LEN 24
 #define MAX_LIST_REPLY_LENGTH 2048  // Large enough for replies with 50 filenames.
 
+// NOTE: where_peer()-specific constants. Field lengths are one more than the
+// longest valid value (15 for an IPv4 address, 5 for a port), so an over-long
+// token gets rejected instead of being truncated into a valid-looking one.
+#define PEER_IP_FIELD_LEN   16
+#define PEER_PORT_FIELD_LEN 6
 
 // Mapping logic: Status code vs corresponding message (that gets displayed to the user).
 
@@ -412,4 +422,60 @@ void versionsFile(CommandParser *parser, const char *filename) {
 
     if (!peers_found)
         printf("Unexpected reply from DS: status OK but no peer entries found\n");
+}
+
+int where_peer(int fd, struct addrinfo *res, const char *filename, const char *uid,
+               char *ip_out, size_t ip_len, int *port_out) {
+    char request[MAX_MSG_LENGTH + 1];
+    char reply[MAX_MSG_LENGTH + 1];
+    char reply_code[STATUS_CODE_LENGTH + 1];
+    char status[STATUS_CODE_LENGTH + 1];
+    char ip[PEER_IP_FIELD_LEN + 1];
+    char port_str[PEER_PORT_FIELD_LEN + 1];
+    struct in_addr addr;
+    char *end;
+    int header_len = 0;
+    int port;
+
+    snprintf(request, sizeof(request), "WHR %s %s\n", filename, uid);
+
+    if (send_and_recv(fd, res, request, reply, sizeof(reply)) == -1)
+        return WHERE_ERROR;
+
+    // NOTE: Hardcoded error code size.
+    if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2)
+        return WHERE_ERROR;
+
+    if (strcmp(reply_code, WHERE_EXPECTED_REPLY_CODE) != 0)
+        return WHERE_ERROR;
+
+    if (strcmp(status, STATUS_NOK) == 0)
+        return WHERE_NOT_FOUND;
+
+    if (strcmp(status, STATUS_OK) != 0)
+        return WHERE_ERROR;
+
+    // OK: expect "IP port". Only the first pair is used.
+    // NOTE: Hardcoded field widths.
+    if (sscanf(reply + header_len, "%16s %6s", ip, port_str) != 2)
+        return WHERE_ERROR;
+
+    // TODO: Check if it's a valid IPv4!
+    if (inet_pton(AF_INET, ip, &addr) != 1)
+        return WHERE_ERROR;
+
+    // First char must be a digit, so strtol can't accept a sign.
+    if (!isdigit((unsigned char) port_str[0]))
+        return WHERE_ERROR;
+    port = (int) strtol(port_str, &end, 10);
+    // TODO: We're including an inputValidation function here! Is there a more elegant way to do this?
+    if (*end != '\0' || !checkPort(port))
+        return WHERE_ERROR;
+
+    if (ip_out != NULL)
+        snprintf(ip_out, ip_len, "%s", ip);
+    if (port_out != NULL)
+        *port_out = port;
+
+    return WHERE_FOUND;
 }
