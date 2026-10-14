@@ -32,6 +32,8 @@ int checkPort(int port){
 }
 
 int checkChar(char c){
+    // TODO: It was casting the result rather than the argument. Undefined behaviour for bytes >= 128!
+    // TODO: Check checkUID and checkPassword as well
     return (unsigned char)isalnum(c) || c == '_' || c == '-'; 
 }
 
