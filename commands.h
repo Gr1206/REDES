@@ -13,6 +13,15 @@
 #include "user.h"
 #include "inputHandlers.h"
 
+/** @brief where_peer result: the user is publishing the file and has an active session. */
+#define WHERE_FOUND      1
+
+/** @brief where_peer result: the DS answered NOK (not published, or no active session). */
+#define WHERE_NOT_FOUND  0
+
+/** @brief where_peer result: transport error, ERR status, or malformed/unexpected reply. */
+#define WHERE_ERROR     -1
+
 /**
  * @brief Performs a user login, registering the user upon the first login.
  *
@@ -69,5 +78,26 @@ void listFiles(CommandParser *parser);
  * @param filename The resource name to request for.
  */
 void versionsFile(CommandParser *parser, const char *filename);
+
+/**
+ * @brief Asks the DS where a given user is publishing a given file.
+ *
+ * Sends a WHR request over UDP. If the DS replies OK, the peer's IP and TCP
+ * port are validated (IPv4 address, port in 1-65535) and, if requested,
+ * returned through the output parameters. Does not require an active login
+ * session. Prints nothing itself, apart from the transport errors reported
+ * by send_and_recv.
+ *
+ * @param fd The UDP socket file descriptor.
+ * @param res The resolved DS address.
+ * @param filename The resource name (must already be validated).
+ * @param uid The publisher's UID (must already be validated).
+ * @param ip_out Where to store the peer's IP, or NULL if not needed.
+ * @param ip_len Size of ip_out (at least INET_ADDRSTRLEN).
+ * @param port_out Where to store the peer's TCP port, or NULL if not needed.
+ * @return WHERE_FOUND, WHERE_NOT_FOUND or WHERE_ERROR.
+ */
+int where_peer(int fd, struct addrinfo *res, const char *filename, const char *uid,
+               char *ip_out, size_t ip_len, int *port_out);
  
 #endif // COMMANDS_H
