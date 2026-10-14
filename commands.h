@@ -53,8 +53,7 @@ void removeFile(CommandParser *parser);
  * filenames - up to a maximum of 50. Unlike most of the other commands, this 
  * command does not require an active login session.
  *
- * @param fd The UDP socket file descriptor.
- * @param res The resolved DS address.
+ * @param parser The command parser struct containing the command args & current app state
  */
 void listFiles(CommandParser *parser);
 
@@ -66,7 +65,7 @@ void listFiles(CommandParser *parser);
  * most of the other commands, this command does not require an active login 
  * session.
  *
- * @param tcp_addr The resolved DS TCP address.
+ * @param parser The command parser struct containing the command args & current app state
  * @param filename The resource name to request for.
  */
 void versionsFile(CommandParser *parser, const char *filename);

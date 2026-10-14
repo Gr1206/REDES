@@ -9,7 +9,8 @@
 #include <netdb.h>
 #include <sys/types.h>
 
-/** @brief Seconds to wait for a DS connect/send/receive before timing out. */
+/** @brief Seconds to wait for a DS send/receive before timing out. */
+// TODO: Does not (yet) cover connect!
 #define TCP_TIMEOUT 5
 
 /**

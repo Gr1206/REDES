@@ -16,8 +16,8 @@
  * @brief Sends a request to the DS and waits for its reply.
  * 
  * Abstracts the sendto + recvfrom logic required by every UDP command
- * (login, logout, unregister), so that callers only need to worry about 
- * building the request string and handling the subsequent reply.
+ * (login, logout, unregister, etc), so that callers only need to worry 
+ * about building the request string and handling the subsequent reply.
  * 
  * @param fd The UDP socket file descriptor.
  * @param res The resolved DS address.
