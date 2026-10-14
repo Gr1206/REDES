@@ -3,8 +3,7 @@
 
 /**
  * @file client.h
- * @brief Client module: implements signal handling, controlled exit, and
- * input validation.
+ * @brief Client module: implements signal handling and controlled exit.
  */
 
 #include <netdb.h>

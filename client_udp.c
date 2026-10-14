@@ -102,6 +102,7 @@ int main(int argc, char *argv[]){
 
     // Ensure recvfrom doesn't hang indefinitely if no response is received
     struct timeval tv;
+    // TODO: Should we memset to zero the tv struct before proceeding?
     tv.tv_sec = UDP_TIMEOUT;
     tv.tv_usec = 0;
     if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
@@ -173,7 +174,7 @@ int main(int argc, char *argv[]){
         } else if(strcmp(command, "versions") == 0){
             parseVersionsF(&parser);
         } else {
-            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\nversions\n-exit\n");
+            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-exit\n");
         }
 
     }   

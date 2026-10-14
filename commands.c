@@ -81,13 +81,17 @@ static const StatusMsg publish_replies[] = {
 };
 
 static const StatusMsg remove_replies[] = {
-    {STATUS_OK, "Sucessful removal"},
+    {STATUS_OK, "Successful removal"},
     {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
+    // TODO: "Resource not found" - should cover both cases!
     {STATUS_NOK, "This file was not published by you"}, //nao existe tb ?
     {STATUS_ERR, MSG_INVALID_REQUEST}
 };
+
+// TODO: List replies?
+// TODO: Versions replies?
 
 static const char *lookup_message(const StatusMsg *table, int n, const char *status) {
     for (int i = 0; i < n; i++)
@@ -297,6 +301,7 @@ void listFiles(CommandParser *parser) {
     }
  
     if (strcmp(status, STATUS_NOK) == 0) {
+        // TODO: Move this into a StatusMsg struct?
         printf("No resources are currently known\n");
         return;
     }
@@ -325,6 +330,7 @@ void listFiles(CommandParser *parser) {
  
         printf("%s\n", filename);
         files_found = 1;
+        // TODO: Shall we break the loop once 50 files are received?
         pos += consumed;
     }
  
@@ -347,6 +353,9 @@ void versionsFile(CommandParser *parser, const char *filename) {
         return;
 
     // NOTE: Hardcoded error code size.
+    // TODO: We must check how this behaves against malformed replies such as "RVROK\n"!
+    // TODO(2): Regarding the previous todo note, in case it fails... shall we 
+    // change the way we parse whitespace?
     if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
         printf("Unexpected reply from DS after versions attempt\n");
         return;
@@ -358,6 +367,7 @@ void versionsFile(CommandParser *parser, const char *filename) {
     }
 
     if (strcmp(status, STATUS_NOK) == 0) {
+        // TODO: Move this into a StatusMsg struct?
         printf("No peers currently available for this resource\n");
         return;
     }

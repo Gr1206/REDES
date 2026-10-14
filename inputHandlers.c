@@ -109,7 +109,7 @@ int parseListF(CommandParser *parser){
 
 int parseVersionsF(CommandParser *parser){
     if(parser->argcount != 2){
-        printf("Invalid number of arguments for versions: versions\n");
+        printf("Invalid number of arguments for versions: versions filename\n");
         return 0;
     }
     if(!checkFilename(parser->args[1])){
@@ -117,5 +117,5 @@ int parseVersionsF(CommandParser *parser){
         return 0;
     }
     versionsFile(parser, parser->args[1]);
-    return 1;
+    return 1;   // TODO: Rever returns (0 vs 1... inverter?)
 }

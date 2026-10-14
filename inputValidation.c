@@ -6,6 +6,7 @@ int checkUID(char* uid){
     if(strsize != 6) return 0; 
 
     for (int i = 0; i < strsize; i++){
+        // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
         if(!isdigit(uid[i]))
             return 0;
     }
@@ -18,6 +19,7 @@ int checkPassword(char* password){
     if(strsize != 8) return 0;
 
     for (int i = 0; i < strsize; i++){
+        // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
         if(!isalnum(password[i]))
             return 0;
     }
@@ -40,20 +42,20 @@ int checkFilename(char* filename){
         return 0;
 
     if (filename[strsize - 4] != '.') {
-        printf("ponto não está no sítio %c\n", filename[strsize - 4]);
+        // printf("ponto não está no sítio %c\n", filename[strsize - 4]);
         return 0; //caso o ponto não esteja no sítio suposto
     }
     //printf("FILENAME : %s\n", filename);
     for (int char_index = 0; char_index < strsize - 4; char_index++){
         if(!checkChar(filename[char_index])) {
-            printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
+            // printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
             return 0;
         }   
     }
 
     for (int i = strsize - 3; i < strsize; i++){ //verificar extensão alfanumérica.
         if(!isalnum((unsigned char)filename[i])) {
-            printf("Char inválido na extensão %c\n", filename[i] );
+            // printf("Char inválido na extensão %c\n", filename[i] );
             return 0;
         }
     }
@@ -88,6 +90,7 @@ int fileExists(const char *path){
     //em caso de sucesso return filesize
     struct stat fileInfo;
     
+    // TODO: What about directories named, e.g., dir.txt? Are they detected?
     int res = stat(path, &fileInfo); //SAves info on buffer
     if (res != 0){
         return -1;
