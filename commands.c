@@ -329,7 +329,7 @@ void listFiles(CommandParser *parser) {
         }
  
         printf("%s\n", filename);
-        files_found = 1;
+        files_found++;  // Ensure this change has no side effects!
         // TODO: Shall we break the loop once 50 files are received?
         pos += consumed;
     }
