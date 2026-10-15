@@ -23,6 +23,7 @@ typedef struct {
     struct addrinfo *ds_addr;       /**< Resolved Directory Server UDP address. */
     struct addrinfo *ds_tcp_addr;   /**< Resolved Directory Server TCP address. */
     int udp_fd;                     /**< UDP socket used to communicate with the DS. */
+    int peer_fd;                    /**< Listening socket for incoming peer connections. */
 } AppState;
 
 #endif // APP_STATE_H
