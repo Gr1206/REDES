@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <errno.h>
 
 #include <signal.h>
 #include <stdbool.h>
@@ -18,6 +19,7 @@
 #include "app_state.h"
 #include "udp.h"
 #include "tcp.h"
+#include "peer.h"
 #include "inputHandlers.h"
 #include "inputValidation.h" //vai sair daqui quando o parse do argv tiver noutro sitio
 #include "client.h" // quero tentar mudar isto
@@ -33,6 +35,7 @@ void controlledExit(AppState *state, int exit_code) {
     if(state->ds_addr != NULL) freeaddrinfo(state->ds_addr);
     if(state->ds_tcp_addr != NULL) freeaddrinfo(state->ds_tcp_addr);
     if(state->udp_fd >= 0) close(state->udp_fd); //close the socket if still open
+    if(state->peer_fd >= 0) close(state->peer_fd);
     exit(exit_code);
 }
 
@@ -40,8 +43,11 @@ void controlledExit(AppState *state, int exit_code) {
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
-    struct User user = {"", "", 0}; 
-    AppState state = {user, 0, NULL, NULL, -1}; //default   // TODO: To look into! We should initialize this differently!
+    AppState state = {
+        .udp_fd = -1, 
+        .peer_fd = -1
+        // TODO: Leave everything else as default / zero-initialized? TBC!
+    };   
     char* DSIP = "193.136.138.142";       //default 
     char* DSPORT = "59000";               //default
     struct addrinfo hints;
@@ -125,59 +131,97 @@ int main(int argc, char *argv[]){
         controlledExit(&state, 1);
     }
 
+    // Initial peer-to-peer server setup
+    state.peer_fd = peer_setup(state.peer_tcp_port);
+    if (state.peer_fd == -1) {
+        controlledExit(&state, 1);
+    }
+
     CommandParser parser;
     parser.state = &state;
-    while(1){
-        char line[256];
 
-        printf("> ");
-        fflush(stdout);                                 //to ensure the buffer gets flushed
+    // setvbuf(stdin, NULL, _IONBF, 0);
 
-        if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
-            /*if(stop_req) {                              //handle SIGINT
-                if(state.user.loggedIn) { //o prof não quer isto supostamente
-                    logout(state.udp_fd, state.ds_addr, &state.user);
-                } */
-            printf("\nExiting\n");
+    // TODO: Turn this into a helper?
+    printf("> ");
+    fflush(stdout);     //to ensure the buffer gets flushed
+
+    while (!stop_req) {
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(STDIN_FILENO, &readfds);
+        FD_SET(state.peer_fd, &readfds);
+        int maxfd = (state.peer_fd > STDIN_FILENO) ? state.peer_fd : STDIN_FILENO;
+
+        // TODO: We need select to have a timeout as well, as stated in class by the professor!
+        if (select(maxfd + 1, &readfds, NULL, NULL, NULL) == -1) {
+            if (errno == EINTR)
+                continue;   // SIGINT
+            perror("Error waiting for input");
             break;
-        
         }
 
-        // Parse the input into args
-        parser.argcount = 0;
-        char *token = strtok(line, " \n");
-        while (token != NULL && parser.argcount < MAX_ARGS) {
-            parser.args[parser.argcount++] = token;
-            token = strtok(NULL, " \n");
+        if (FD_ISSET(state.peer_fd, &readfds)) {
+            int connfd = accept(state.peer_fd, NULL, NULL);
+            if (connfd == -1) {
+                // TODO: What kind of errors covered here? ECONNABORTED, EMFILE, etc?
+                fprintf(stderr, "\nError accepting peer connection: %s\n", strerror(errno));
+                printf("> ");
+                fflush(stdout);
+            } else {
+                serve_peer(connfd, &state);
+            }
         }
 
-        if(parser.argcount == 0) { //nothing written
-            continue; 
-        }
+        if(FD_ISSET(STDIN_FILENO, &readfds)) {
+            char line[256];     // TODO: Use a constant instead?
 
-        char *command = parser.args[0];
-        parser.command = command;
-        if(strcmp(command, "login") == 0) {
-            parseLogin(&parser);
-        } else if(strcmp(command, "unregister") == 0) {
-           parseUnreg(&parser);
-        } else if(strcmp(command, "logout") == 0) {
-            parseLogout(&parser);
-        } else if(strcmp(command, "exit") == 0) {
-            parseExit(&parser);
-        } else if(strcmp(command, "publish") == 0) {
-            parsePublish(&parser);
-        } else if(strcmp(command, "remove") == 0){
-            parseRemoveF(&parser);
-        } else if(strcmp(command, "list") == 0){
-            parseListF(&parser);
-        } else if(strcmp(command, "versions") == 0){
-            parseVersionsF(&parser);
-        } else {
-            printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-exit\n");
-        }
+            if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
+                /*if(stop_req) {                              //handle SIGINT
+                    if(state.user.loggedIn) { //o prof não quer isto supostamente
+                        logout(state.udp_fd, state.ds_addr, &state.user);
+                    } */
+                printf("\nExiting\n");
+                break;
+            }
 
-    }   
+            // Parse the input into args
+            parser.argcount = 0;
+            char *token = strtok(line, " \n");
+            while (token != NULL && parser.argcount < MAX_ARGS) {
+                parser.args[parser.argcount++] = token;
+                token = strtok(NULL, " \n");
+            }
+
+            if(parser.argcount > 0) {
+                char *command = parser.args[0];
+                parser.command = command;
+                if(strcmp(command, "login") == 0) {
+                    parseLogin(&parser);
+                } else if(strcmp(command, "unregister") == 0) {
+                parseUnreg(&parser);
+                } else if(strcmp(command, "logout") == 0) {
+                    parseLogout(&parser);
+                } else if(strcmp(command, "exit") == 0) {
+                    parseExit(&parser);
+                } else if(strcmp(command, "publish") == 0) {
+                    parsePublish(&parser);
+                } else if(strcmp(command, "remove") == 0){
+                    parseRemoveF(&parser);
+                } else if(strcmp(command, "list") == 0){
+                    parseListF(&parser);
+                } else if(strcmp(command, "versions") == 0){
+                    parseVersionsF(&parser);
+                } else {
+                    // TODO: To be refactored?
+                    printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-exit\n");
+                }
+            }
+
+            printf("> ");
+            fflush(stdout);
+        }
+    }
     
     controlledExit(&state, 0);
 }
