@@ -14,6 +14,15 @@
 /** @brief Maximum number of peer connections that can wait to be accepted. */
 #define PEER_BACKLOG 10
 
+/** @brief peer_download result: the file was downloaded and saved. */
+#define PEER_DL_OK        0
+
+/** @brief peer_download result: the peer answered NOK (it does not serve the file). */
+#define PEER_DL_REFUSED   1
+
+/** @brief peer_download result: connection, protocol, I/O or timeout failure. */
+#define PEER_DL_FAILED   -1
+
 /**
  * @brief Serves one incoming peer connection.
  *
@@ -38,5 +47,21 @@ void serve_peer(int connfd, AppState *state);
  * @return The listening socket file descriptor, or -1 on failure.
  */
 int peer_setup(int port);
+
+/**
+ * @brief Downloads a file from a peer, using the GET/RGT protocol.
+ *
+ * Connects to the peer, requests the file and streams the contents into
+ * "<filename>.part", which replaces <filename> only once all announced bytes
+ * have been received. On any failure the partial file is deleted and an
+ * existing <filename> is left untouched. Reports failures itself (stderr).
+ *
+ * @param ip The peer's IPv4 address (already validated).
+ * @param port The peer's TCP port.
+ * @param filename The resource name (must already be validated).
+ * @param size_out Out-parameter: size of the saved file, set on PEER_DL_OK only.
+ * @return PEER_DL_OK, PEER_DL_REFUSED or PEER_DL_FAILED.
+ */
+int peer_download(const char *ip, int port, const char *filename, long *size_out);
 
 #endif // PEER_H
