@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -187,4 +188,55 @@ void serve_peer(int connfd, AppState *state) {
     else
         printf("\nPeer request: %s\n> ", outcome_message(outcome));
     fflush(stdout);
+}
+
+int peer_setup(int port) {
+    struct addrinfo hints, *res;
+    char port_str[6];   // Up to 5 digits (65535) plus '\0'.
+    int fd, errcode;
+    int opt = 1;
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;    // NULL node + AI_PASSIVE: bind to all interfaces.
+
+    errcode = getaddrinfo(NULL, port_str, &hints, &res);
+    if (errcode != 0) {
+        fprintf(stderr, "Error getting peer address\n");
+        return -1;
+    }
+
+    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd == -1) {
+        perror("Error creating peer socket");
+        freeaddrinfo(res);
+        return -1;
+    }
+
+    // Lets a quick restart rebind the port while old connections linger in TIME_WAIT.
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+        perror("Error setting peer socket options");
+        freeaddrinfo(res);
+        close(fd);
+        return -1;
+    }
+
+    if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
+        perror("Error binding peer socket");    // Typically EADDRINUSE: port already taken.
+        freeaddrinfo(res);
+        close(fd);
+        return -1;
+    }
+    freeaddrinfo(res);
+
+    if (listen(fd, PEER_BACKLOG) == -1) {
+        perror("Error listening on peer socket");
+        close(fd);
+        return -1;
+    }
+
+    return fd;
 }
