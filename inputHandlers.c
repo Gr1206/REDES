@@ -119,3 +119,16 @@ int parseVersionsF(CommandParser *parser){
     versionsFile(parser, parser->args[1]);
     return 1;   // TODO: Rever returns (0 vs 1... inverter?)
 }
+
+int parseGetF(CommandParser *parser){
+    if(parser->argcount != 2){
+        printf("Invalid number of arguments for get: get filename\n");
+        return 0;
+    }
+    if(!checkFilename(parser->args[1])){
+        printf("Invalid filename format\n");
+        return 0;
+    }
+    getFile(parser, parser->args[1]);
+    return 1;   // TODO: Rever returns (0 vs 1... inverter?)
+}

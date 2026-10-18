@@ -67,5 +67,12 @@ int parseListF(CommandParser *parser);
  */
 int parseVersionsF(CommandParser *parser);
 
+/**
+ * @brief Parses the get file command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
+ * @return a definir
+ */
+int parseGetF(CommandParser *parser);
+
 
 #endif

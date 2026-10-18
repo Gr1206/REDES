@@ -80,13 +80,25 @@ void listFiles(CommandParser *parser);
 void versionsFile(CommandParser *parser, const char *filename);
 
 /**
- * @brief Asks the DS where a given user is publishing a given file.
+ * @brief Downloads a given resource from one of the available peers sharing it.
+ * 
+ * Sends a GET request over TCP to a peer previously confirmed to be available.
+ * Does not require an active login session. Requires the versions command to have 
+ * been run previously for the same filename and asks for confirmation if the file 
+ * already exists locally.
+ * 
+ * TODO: Does it really make sense being able to get a resource without being logged in?
  *
- * Sends a WHR request over UDP. If the DS replies OK, the peer's IP and TCP
- * port are validated (IPv4 address, port in 1-65535) and, if requested,
- * returned through the output parameters. Does not require an active login
- * session. Prints nothing itself, apart from the transport errors reported
- * by send_and_recv.
+ * @param parser The command parser struct containing the command args & current app state
+ * @param filename The resource name to download (must already be validated).
+ */
+void getFile(CommandParser *parser, const char *filename);
+
+/**
+ * @brief Asks the DS for the address of a user publishing a specific file.
+ *
+ * Sends a WHR request over UDP, and, if successful, validates the peer's IP 
+ * and TCP port. Does not require an active login session.
  *
  * @param fd The UDP socket file descriptor.
  * @param res The resolved DS address.
