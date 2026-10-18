@@ -73,6 +73,9 @@ int main(int argc, char *argv[]){
         }   
         switch (argv[i][1]){
             case 'm':
+                // TODO: Should we change this to strtol? And later cast it to int?
+                //       Strtol allows us to catch malformed input such as "80xyz" 
+                //       or "xyz", while atoi ignores it!
                 state.peer_tcp_port = atoi(argv[i+1]);
                 break;
             case 'n':
@@ -164,7 +167,7 @@ int main(int argc, char *argv[]){
         if (FD_ISSET(state.peer_fd, &readfds)) {
             int connfd = accept(state.peer_fd, NULL, NULL);
             if (connfd == -1) {
-                // TODO: What kind of errors covered here? ECONNABORTED, EMFILE, etc?
+                // TODO: What kind of errors get covered here? ECONNABORTED, EMFILE, etc?
                 fprintf(stderr, "\nError accepting peer connection: %s\n", strerror(errno));
                 printf("> ");
                 fflush(stdout);
@@ -212,9 +215,11 @@ int main(int argc, char *argv[]){
                     parseListF(&parser);
                 } else if(strcmp(command, "versions") == 0){
                     parseVersionsF(&parser);
+                } else if(strcmp(command, "get") == 0){
+                    parseGetF(&parser);
                 } else {
                     // TODO: To be refactored?
-                    printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-exit\n");
+                    printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-get\n-exit\n");
                 }
             }
 

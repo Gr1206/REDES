@@ -3,12 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "commands.h"
 #include "udp.h"
 #include "tcp.h"
 #include "inputHandlers.h"
 #include "inputValidation.h"
+#include "peer.h"
 
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
@@ -35,24 +37,25 @@
 #define MAX_MSG_LENGTH 256
 #define STATUS_CODE_LENGTH 3        // Response status codes are <= 3 chars.
 
-// NOTE: versions()-specific constants.
+// versions()-specific constants.
 #define MAX_TCP_REPLY_LENGTH 16384  // ~16 KB: large enough for >100 peer entries.
 #define LABEL_MAX_LEN 20
 #define AVAILABILITY_LEN 3          // "AVL" or "NAV".
 #define PUB_TIME_MAX_LEN 31         // TBD: Provisional (publication_time's format/length)?
 
-// NOTE: list()-specific constants.
-#define FILENAME_MAX_LEN 24
+// list()-specific constants.
+#define FILENAME_MAX_LEN 24         // TODO: Remove it from here? Duplicated in AppState! Or should we keep it here instead?
 #define MAX_LIST_REPLY_LENGTH 2048  // Large enough for replies with 50 filenames.
 
-// NOTE: where_peer()-specific constants. Field lengths are one more than the
-// longest valid value (15 for an IPv4 address, 5 for a port), so an over-long
-// token gets rejected instead of being truncated into a valid-looking one.
+// where_peer()-specific constants.
 #define PEER_IP_FIELD_LEN   16
 #define PEER_PORT_FIELD_LEN 6
+// #define WHERE_FOUND      1          // OK (peer publishing and available)
+// #define WHERE_NOT_FOUND  0          // NOK (peer not publishing and/or unavailable)
+// #define WHERE_ERROR     -1          // ERR (malformed/unexpected reply, transport error)
+
 
 // Mapping logic: Status code vs corresponding message (that gets displayed to the user).
-
 typedef struct { 
     const char *status;
     const char *message;
@@ -356,8 +359,13 @@ void versionsFile(CommandParser *parser, const char *filename) {
     char reply_code[STATUS_CODE_LENGTH + 1];
     char status[STATUS_CODE_LENGTH + 1];
     int header_len = 0;
+    PeerList *list = &parser->state->peer_list;
 
     snprintf(request, sizeof(request), "VRS %s\n", filename);
+
+    // Reset the list each time the command gets run.
+    list->count = 0;
+    list->filename[0] = '\0';
 
     if (tcp_exchange(parser->state->ds_tcp_addr, request, reply, sizeof(reply)) == -1)
         return;
@@ -416,12 +424,98 @@ void versionsFile(CommandParser *parser, const char *filename) {
         printf("%s | %ld bytes | %s | %s | %s\n", uid, fsize, label, pub_time,
                strcmp(availability, "AVL") == 0 ? "Available" : "Not available");
 
-        peers_found = 1;
+        if (list->count < MAX_PEER_CANDIDATES && checkUID(uid)) {
+            PeerCandidate *p = &list->peers[list->count++];
+            snprintf(p->uid, sizeof(p->uid), "%s", uid);
+            // TODO: Abstract the availability comparison into a helper function?
+            // TODO: Extract the string constant to a constant of its own!
+            p->available = strcmp(availability, "AVL") == 0;
+        }
+
+        peers_found++;
         pos += consumed;
     }
 
+    if (list->count > 0)
+        snprintf(list->filename, sizeof(list->filename), "%s", filename);
+
     if (!peers_found)
         printf("Unexpected reply from DS: status OK but no peer entries found\n");
+}
+
+static int confirmOverwrite(const char *filename) {
+    // TODO: Hardcoded buffer size TBC!
+    char answer[8];
+
+    printf("%s already exists, overwrite? [y/N] ", filename);
+    fflush(stdout);
+    if (fgets(answer, sizeof(answer), stdin) == NULL)
+        return 0;
+
+    // In case of malformed input, ensure nothing gets left in stdin.
+    if (strchr(answer, '\n') == NULL) {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF);
+    }
+    
+    return answer[0] == 'y' || answer[0] == 'Y';
+}
+
+void getFile(CommandParser *parser, const char *filename) {
+    AppState *state = parser->state;
+    PeerList *list = &state->peer_list;
+    int tried = 0;
+
+    // Check if the versions command has already been run for this file.
+    if (list->count == 0 || strcmp(list->filename, filename) != 0) {
+        // TODO: Shall we just have the command invoke versions by itself automatically? 
+        // Rather than forcing the user to do so?
+        printf("Run versions %s first\n", filename);
+        return;
+    }
+
+    if (access(filename, F_OK) == 0 && !confirmOverwrite(filename))
+        return;
+
+    for (int i = 0; i < list->count; i++) {
+        const PeerCandidate *p = &list->peers[i];
+        char ip[INET_ADDRSTRLEN];
+        int port;
+        long size;
+
+        if (!p->available)
+            continue;
+
+        // TODO: This implies we can download from our user when logged out. 
+        //       Does this even make sense?
+        if (state->user.loggedIn && strcmp(p->uid, state->user.UID) == 0)
+            continue;
+
+        tried++;
+
+        // Check the peer's availability before connecting.
+        if (where_peer(state->udp_fd, state->ds_addr, filename, p->uid,
+                       ip, sizeof(ip), &port) != WHERE_FOUND) {
+            printf("Peer %s is not available\n", p->uid);
+            continue;
+        }
+
+        printf("Trying peer %s (%s:%d)\n", p->uid, ip, port);
+        int result = peer_download(ip, port, filename, &size);
+        if (result == PEER_DL_OK) {
+            printf("Downloaded %s (%ld bytes) to ./%s\n", filename, size, filename);
+            return;
+        }
+        if (result == PEER_DL_REFUSED)
+            printf("Peer %s does not have the file\n", p->uid);
+        else
+            printf("Download from peer %s failed\n", p->uid);
+    }
+
+    if (tried == 0)
+        printf("No available peers for this resource\n");
+    else
+        printf("Could not download %s from any peer\n", filename);
 }
 
 int where_peer(int fd, struct addrinfo *res, const char *filename, const char *uid,
@@ -455,12 +549,11 @@ int where_peer(int fd, struct addrinfo *res, const char *filename, const char *u
     if (strcmp(status, STATUS_OK) != 0)
         return WHERE_ERROR;
 
-    // OK: expect "IP port". Only the first pair is used.
     // NOTE: Hardcoded field widths.
     if (sscanf(reply + header_len, "%16s %6s", ip, port_str) != 2)
         return WHERE_ERROR;
 
-    // TODO: Check if it's a valid IPv4!
+    // Check if the IPv4 is valid.
     if (inet_pton(AF_INET, ip, &addr) != 1)
         return WHERE_ERROR;
 
