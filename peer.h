@@ -12,15 +12,15 @@
 #define PEER_TIMEOUT 5
 
 /** @brief Maximum number of peer connections that can wait to be accepted. */
-#define PEER_BACKLOG 10
+#define PEER_BACKLOG 16
 
-/** @brief peer_download result: the file was downloaded and saved. */
+/** @brief peer_download result: file downloaded and saved successfully. */
 #define PEER_DL_OK        0
 
-/** @brief peer_download result: the peer answered NOK (it does not serve the file). */
+/** @brief peer_download result: received NOK from the peer. */
 #define PEER_DL_REFUSED   1
 
-/** @brief peer_download result: connection, protocol, I/O or timeout failure. */
+/** @brief peer_download result: other failures (connection, protocol, I/O, timeout, etc). */
 #define PEER_DL_FAILED   -1
 
 /**
@@ -28,12 +28,12 @@
  *
  * Reads a GET request and replies with RGT. The file is only served if the
  * request is well-formed, the user is logged in, the file exists locally, and
- * the DS confirms (through a WHR request) that this user publishes it.
- * Anything else is refused. Always closes connfd before returning, and
- * reports the outcome to the user.
+ * the DS confirms that the user is actively publishing the file. If that's not 
+ * the case, the request gets refused. Always closes the file descriptor before 
+ * returning, and reports the outcome to the user.
  *
  * @param connfd The accepted peer connection.
- * @param state The shared app state object (user, UDP socket and DS address).
+ * @param state The shared app state object.
  */
 void serve_peer(int connfd, AppState *state);
 
@@ -41,9 +41,9 @@ void serve_peer(int connfd, AppState *state);
  * @brief Creates the listening socket for incoming peer connections.
  *
  * Binds to the given TCP port on all interfaces and starts listening, so
- * peers that are advertised the port by the DS can connect to it.
+ * that peers can connect to it.
  *
- * @param port The TCP port to listen on (the -m peerport).
+ * @param port The TCP port to listen on (corresponding to the -m TCP peer port).
  * @return The listening socket file descriptor, or -1 on failure.
  */
 int peer_setup(int port);
@@ -52,9 +52,9 @@ int peer_setup(int port);
  * @brief Downloads a file from a peer, using the GET/RGT protocol.
  *
  * Connects to the peer, requests the file and streams the contents into
- * "<filename>.part", which replaces <filename> only once all announced bytes
- * have been received. On any failure the partial file is deleted and an
- * existing <filename> is left untouched. Reports failures itself (stderr).
+ * "<filename>.part", which replaces <filename> only once every byte has been 
+ * received. On any failure the partial file is deleted and the existing 
+ * <filename> is left as it was.
  *
  * @param ip The peer's IPv4 address (already validated).
  * @param port The peer's TCP port.

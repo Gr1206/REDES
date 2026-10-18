@@ -11,18 +11,21 @@
 #include "commands.h"
 #include "inputValidation.h"
 
-#define PEER_REQUEST_MAX 64    // Longest valid request is "GET " + 24 chars + '\n' = 29 bytes.
-#define PEER_CHUNK_SIZE 4096   // Size of the chunks used to stream a file.
-#define PEER_HEADER_MAX 32     // Room for "RGT OK <size> ".
+#define PEER_REQUEST_MAX 64    // Longest valid request is 29 bytes.
 
-// Outcome of serving one request (reported to the user).
+// TODO: Optimal size? TBC!
+#define PEER_CHUNK_SIZE 4096   // Size of the chunks used to stream a file.
+#define PEER_HEADER_MAX 32     // RGT OK <size> <data>
+
+// Get request outcome
 #define PEER_SERVED     0      // File sent successfully.
 #define PEER_DROPPED    1      // Peer closed or timed out before sending a full request.
-#define PEER_MALFORMED  2      // Syntax error (answered with RGT ERR).
-#define PEER_REFUSED    3      // Valid request, not served (answered with RGT NOK).
+#define PEER_MALFORMED  2      // Syntax error (RGT ERR).
+#define PEER_REFUSED    3      // Valid request, but unserved (RGT NOK).
 #define PEER_FAILED     4      // Failure while replying (socket error, file changed...).
 
 // write() may send fewer bytes than requested, so a loop is required.
+// TODO: Shall we abstract this within tcp.h as well? Maybe adding a verbose optional arg?
 static int write_all(int fd, const char *buf, size_t len) {
     size_t written = 0;
     while (written < len) {
@@ -37,12 +40,12 @@ static int write_all(int fd, const char *buf, size_t len) {
 static void send_status(int fd, const char *status) {
     char reply[16];
     snprintf(reply, sizeof(reply), "RGT %s\n", status);
-    write_all(fd, reply, strlen(reply));   // Best effort: nothing else to do on failure.
+    write_all(fd, reply, strlen(reply));
 }
 
 // Reads until the first '\n' and replaces it with '\0'.
-// Returns 1 for a complete request, 0 for a malformed one (too long, embedded
-// '\0', or bytes after the '\n'), -1 if the peer closed, timed out or failed.
+// Returns 1 for a complete request, 0 for a malformed one, or -1 if the peer 
+// closed, timed out or failed.
 static int read_request(int fd, char *buf, size_t size) {
     size_t total = 0;
 
@@ -60,7 +63,7 @@ static int read_request(int fd, char *buf, size_t size) {
             return 1;
         }
     }
-    return 0;   // Buffer full without a '\n'.
+    return 0;   // Buffer full without a '\n'
 }
 
 // Only regular files within the protocol's size limit can be served.
@@ -77,7 +80,7 @@ static int stream_file(int connfd, int filefd) {
     struct stat st;
     off_t remaining;
 
-    // Checked on the opened fd, so the checks apply to the file actually served.
+    // Checked the opened fd, so the checks apply to the file actually served.
     if (fstat(filefd, &st) == -1 || !servable(&st)) {
         send_status(connfd, "NOK");
         return PEER_REFUSED;
@@ -87,8 +90,8 @@ static int stream_file(int connfd, int filefd) {
     if (write_all(connfd, header, strlen(header)) == -1)
         return PEER_FAILED;
 
-    // Exactly st_size bytes are sent. If the file shrinks meanwhile, abort
-    // instead of padding, so the receiver sees a premature close.
+    // Exactly st_size bytes are sent. If the file shrinks in the meantime, 
+    // abort so the peer sees a premature close.
     remaining = st.st_size;
     while (remaining > 0) {
         size_t want = remaining < (off_t) sizeof(chunk) ? (size_t) remaining : sizeof(chunk);
@@ -104,8 +107,7 @@ static int stream_file(int connfd, int filefd) {
 }
 
 static int send_file(int connfd, const char *filename) {
-    // O_NONBLOCK: a FIFO swapped in under a valid name can't hang open().
-    int filefd = open(filename, O_RDONLY | O_NONBLOCK);
+    int filefd = open(filename, O_RDONLY | O_NONBLOCK); // O_NONBLOCK: a FIFO swapped in under a valid name can't hang open()
     if (filefd == -1) {
         send_status(connfd, "NOK");
         return PEER_REFUSED;
@@ -123,28 +125,25 @@ static int handle_request(int connfd, AppState *state, char *request) {
     if (result == -1)
         return PEER_DROPPED;
 
-    // Strict parse: exactly "GET <valid filename>". checkFilename also rejects
-    // '/' and ".", so nothing unvalidated ever reaches the filesystem.
+    // Must match "GET <valid filename>" exactly.
     if (result == 0 || strncmp(request, "GET ", 4) != 0 || !checkFilename(request + 4)) {
         send_status(connfd, "ERR");
         return PEER_MALFORMED;
     }
 
     // TODO: Shouldn't this check appear before the first one?
-    // Every refusal below is the same NOK, so peers can't probe why.
     if (!state->user.loggedIn) {
         send_status(connfd, "NOK");
         return PEER_REFUSED;
     }
 
-    // Cheap local check first, so requests for missing files don't cost a DS round trip.
+    // Local check for the file.
     if (stat(request + 4, &st) == -1 || !servable(&st)) {
         send_status(connfd, "NOK");
         return PEER_REFUSED;
     }
 
-    // We only serve files that we publish ourselves, and the DS is the source of truth.
-    // Fails closed: NOK or error from the DS both end up as a refusal.
+    // Serve only files that we have published.
     if (where_peer(state->udp_fd, state->ds_addr, request + 4, state->user.UID,
                    NULL, 0, NULL) != WHERE_FOUND) {
         send_status(connfd, "NOK");
@@ -156,11 +155,11 @@ static int handle_request(int connfd, AppState *state, char *request) {
 
 static const char *outcome_message(int outcome) {
     switch (outcome) {
-        case PEER_SERVED:    return "File sent";
+        case PEER_SERVED:    return "File sent successfully";
         case PEER_DROPPED:   return "Connection closed before a full request";
         case PEER_MALFORMED: return "Malformed request";
         case PEER_REFUSED:   return "Request refused";
-        default:             return "Transfer failed";
+        default:             return "File transfer failed";
     }
 }
 
@@ -169,7 +168,6 @@ void serve_peer(int connfd, AppState *state) {
     struct timeval tv;
     int outcome;
 
-    // Accepted sockets don't reliably inherit the listening socket's options.
     tv.tv_sec = PEER_TIMEOUT;
     tv.tv_usec = 0;
     if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1 ||
@@ -180,9 +178,6 @@ void serve_peer(int connfd, AppState *state) {
 
     close(connfd);
 
-    // The request only holds a validated filename once parsing has passed, so
-    // raw peer bytes are never echoed to the terminal. The leading '\n' and
-    // trailing "> " are because this lands in the middle of the prompt line.
     if (outcome == PEER_SERVED || outcome == PEER_REFUSED || outcome == PEER_FAILED)
         printf("\nPeer request for %s: %s\n> ", request + 4, outcome_message(outcome));
     else
@@ -192,8 +187,10 @@ void serve_peer(int connfd, AppState *state) {
 
 int peer_setup(int port) {
     struct addrinfo hints, *res;
-    char port_str[6];   // Up to 5 digits (65535) plus '\0'.
+    char port_str[6];   // TODO: Port str constant!
     int fd, errcode;
+
+    // Flag to set the option that prevents bind errors upon app restart.
     int opt = 1;
 
     snprintf(port_str, sizeof(port_str), "%d", port);
@@ -201,7 +198,7 @@ int peer_setup(int port) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;    // NULL node + AI_PASSIVE: bind to all interfaces.
+    hints.ai_flags = AI_PASSIVE;    // Required to bind to all interfaces (requires NULL host below).
 
     errcode = getaddrinfo(NULL, port_str, &hints, &res);
     if (errcode != 0) {
@@ -216,7 +213,7 @@ int peer_setup(int port) {
         return -1;
     }
 
-    // Lets a quick restart rebind the port while old connections linger in TIME_WAIT.
+    // Workaround for the TIME_WAIT state blocking the upcoming bind action after quick restarts.
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
         perror("Error setting peer socket options");
         freeaddrinfo(res);
@@ -225,7 +222,9 @@ int peer_setup(int port) {
     }
 
     if (bind(fd, res->ai_addr, res->ai_addrlen) == -1) {
-        perror("Error binding peer socket");    // Typically EADDRINUSE: port already taken.
+        // EADDRINUSE: port already taken.
+        // TODO: Any other error possible here?
+        perror("Error binding peer socket");
         freeaddrinfo(res);
         close(fd);
         return -1;
@@ -247,8 +246,7 @@ static void discard(int out, const char *tmp_path) {
     unlink(tmp_path);
 }
 
-// Reads "RGT OK <size> " (up to the 3rd space) or "RGT NOK\n" byte by byte,
-// so that no file data is consumed.
+// Reads "RGT OK <size> " or "RGT NOK\n".
 static int read_rgt_header(int fd, long *size_out) {
     char hdr[PEER_HEADER_MAX + 1];
     size_t len = 0;
@@ -266,16 +264,16 @@ static int read_rgt_header(int fd, long *size_out) {
         }
         char c = hdr[len++];
         if (c == '\n')
-            break;
+            break;  // RGT NOK\n
         if (c == ' ' && ++spaces == 3)
-            break;
+            break;  // RGT OK <size> <data>
     }
     hdr[len] = '\0';
 
     if (strcmp(hdr, "RGT NOK\n") == 0)
         return PEER_DL_REFUSED;
 
-    // 7-char prefix "RGT OK ", then 1-8 digits (MAX_FILESIZE has 8), then ' '.
+    // 7-char prefix "RGT OK " + 1-8 digits (MAX_FILESIZE has 8) + a trailing whitespace char.
     int digits = (int) len - 8;
     if (strncmp(hdr, "RGT OK ", 7) != 0 || hdr[len - 1] != ' ' || digits < 1 || digits > 8) {
         fprintf(stderr, "Malformed reply from peer\n");
@@ -345,11 +343,11 @@ static int save_body(int fd, const char *filename, long size) {
     return 0;
 }
 
-// Returns a socket connected to ip:port, or -1.
+// Returns a socket connected to ip:port, or returns -1 on failure.
 static int peer_connect(const char *ip, int port) {
     struct addrinfo hints, *res;
     struct timeval tv;
-    char port_str[6];   // Up to 5 digits (65535) plus '\0'.
+    char port_str[6];   // TODO: Port str constant!
     int fd, errcode;
 
     snprintf(port_str, sizeof(port_str), "%d", port);
@@ -357,7 +355,7 @@ static int peer_connect(const char *ip, int port) {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;   // The address is already numeric: no lookups.
+    hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;   // The address is already numeric: no DNS lookups.
 
     errcode = getaddrinfo(ip, port_str, &hints, &res);
     if (errcode != 0) {
@@ -399,10 +397,12 @@ int peer_download(const char *ip, int port, const char *filename, long *size_out
     long size;
     int fd, result;
 
+    // Create the socket and establish the TCP connection.
     fd = peer_connect(ip, port);
     if (fd == -1)
         return PEER_DL_FAILED;
 
+    // Send the request.
     snprintf(request, sizeof(request), "GET %s\n", filename);
     if (write_all(fd, request, strlen(request)) == -1) {
         perror("Error sending request to peer");
@@ -410,6 +410,7 @@ int peer_download(const char *ip, int port, const char *filename, long *size_out
         return PEER_DL_FAILED;
     }
 
+    // Retrieve the response.
     result = read_rgt_header(fd, &size);
     if (result == PEER_DL_OK) {
         if (save_body(fd, filename, size) == -1)
@@ -418,6 +419,7 @@ int peer_download(const char *ip, int port, const char *filename, long *size_out
             *size_out = size;
     }
 
-    close(fd);      // The requesting side closes, as the statement says
+    // The requester is expected to close.
+    close(fd);
     return result;
 }
