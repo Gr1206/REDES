@@ -46,7 +46,7 @@ int checkFilename(char* filename){
     //printf("FILENAME : %s\n", filename);
     for (int char_index = 0; char_index < strsize - 4; char_index++){
         if(!checkChar(filename[char_index])) {
-            printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
+            //printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
             return 0;
         }   
     }

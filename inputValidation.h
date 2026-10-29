@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 
-#define MAX_FILESIZE (10LL * 1000 * 1000) //MANTEM EM 64 BITS
+#define MAX_FILESIZE (10 * 1000 * 1000) 
 
 /**
  * @brief Check if the UID has 6 digits
@@ -38,21 +38,22 @@ int checkPort(int port);
 int checkChar(char c);
 
 /**
- * @brief Check if the filename is valid
+ * @brief Check if the filename is valid : 24 chars & only letters, digits, - or _
+ * check if extension has 3 chars
  * @param filename The filename to check
  * @return 1 if the filename is valid, 0 invalid
  */
 int checkFilename(char* filename);
 
 /**
- * @brief Check if the label is valid
+ * @brief Check if the label is valid : 20 chars max & only letters, digits, - or _
  * @param label The label to check
  * @return 1 if the label is valid, 0 invalid
  */
 int checkLabel(char* label);
 
 /**
- * @brief Check if the file size is valid (0 to MAX_FILESIZE)
+ * @brief Check if the file size is valid (0 to MAX_FILESIZE) : 10 000 000 bytes
  * @param size The file size to check
  * @return 1 if the file size is valid, 0 invalid
  */
