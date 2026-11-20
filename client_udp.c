@@ -28,6 +28,11 @@
 #define DEFAULT_DS_IP   "193.136.138.142"
 #define DEFAULT_DS_PORT "59000"
 
+#define MAX_INPUT_LEN   256   // User input buffer size.
+#define INPUT_OK        0
+#define INPUT_TOO_LONG  1
+#define INPUT_EOF      -1
+
 volatile sig_atomic_t stop_req = 0;
 
 void handle_sigint(int sig) {
@@ -41,6 +46,36 @@ void controlledExit(AppState *state, int exit_code) {
     if(state->udp_fd >= 0) close(state->udp_fd); //close the socket if still open
     if(state->peer_fd >= 0) close(state->peer_fd);
     exit(exit_code);
+}
+
+/**
+ * @brief Reads one line of user input.
+ *
+ * This function prevents issues whenever user input is longer than the 
+ * provided buffer - any input exceeding the buffer size would remain in 
+ * stdin and immediately be read as if it were new user input. This function 
+ * prevents that issue by ensuring any input exceeding the buffer size gets 
+ * immediately discarded.
+ *
+ * @param buf Where the line is stored.
+ * @param size Size of the buffer.
+ * @return INPUT_OK, INPUT_TOO_LONG or INPUT_EOF.
+ */
+static int read_input_line(char *buf, size_t size) {
+    if (fgets(buf, size, stdin) == NULL)
+        return INPUT_EOF;
+
+    if (strchr(buf, '\n') != NULL)
+        return INPUT_OK;
+
+    // No '\n'? Either the input did not fit the buffer (or somehow it ended 
+    // without a final '\n'). Discard everything else to ensure nothing is 
+    // left in the buffer.
+    int c, leftover_chars = 0;
+    while ((c = getchar()) != '\n' && c != EOF)
+        leftover_chars = 1;
+
+    return leftover_chars ? INPUT_TOO_LONG : INPUT_OK;
 }
 
 /**
@@ -179,15 +214,21 @@ int main(int argc, char *argv[]){
         }
 
         if(FD_ISSET(STDIN_FILENO, &readfds)) {
-            char line[256];     // TODO: Use a constant instead?
+            char line[MAX_INPUT_LEN];
+            int input_status = read_input_line(line, sizeof(line));
 
-            if (fgets(line, sizeof(line), stdin) == NULL) { //unable to read input
+            if (input_status == INPUT_EOF) { //unable to read input
                 /*if(stop_req) {                              //handle SIGINT
                     if(state.user.loggedIn) { //o prof não quer isto supostamente
                         logout(state.udp_fd, state.ds_addr, &state.user);
                     } */
                 printf("\nExiting\n");
                 break;
+            }
+            if (input_status == INPUT_TOO_LONG) {
+                printf("Input too long (max %d characters)\n", MAX_INPUT_LEN - 1);
+                print_prompt();
+                continue;
             }
 
             // Parse the input into args
