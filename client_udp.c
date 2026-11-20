@@ -39,14 +39,13 @@ void controlledExit(AppState *state, int exit_code) {
     exit(exit_code);
 }
 
-
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
     AppState state = {
+        // Everything else is left as default in the instance (either 0 or NULL)
         .udp_fd = -1, 
         .peer_fd = -1
-        // TODO: Leave everything else as default / zero-initialized? TBC!
     };   
     char* DSIP = "193.136.138.142";       //default 
     char* DSPORT = "59000";               //default
@@ -100,11 +99,6 @@ int main(int argc, char *argv[]){
         printf("Peer port is required\n");
         exit(1);
     }
-
-    // if (!checkPort(state.peer_tcp_port)) {
-    //     printf("Invalid peer port\n");
-    //     exit(1);
-    // }
     
     // Initial UDP setup
     // TODO: Logic to be abstracted within the udp module with a udp_setup func, 
@@ -117,7 +111,6 @@ int main(int argc, char *argv[]){
 
     // Ensure recvfrom doesn't hang indefinitely if no response is received
     struct timeval tv;
-    // TODO: Should we memset to zero the tv struct before proceeding?
     tv.tv_sec = UDP_TIMEOUT;
     tv.tv_usec = 0;
     if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
@@ -173,7 +166,6 @@ int main(int argc, char *argv[]){
         if (FD_ISSET(state.peer_fd, &readfds)) {
             int connfd = accept(state.peer_fd, NULL, NULL);
             if (connfd == -1) {
-                // TODO: What kind of errors get covered here? ECONNABORTED, EMFILE, etc?
                 fprintf(stderr, "\nError accepting peer connection: %s\n", strerror(errno));
                 printf("> ");
                 fflush(stdout);
