@@ -22,10 +22,10 @@
  *
  * @param ds_ip The DS's IP address (or hostname).
  * @param ds_tcp_port The DS's TCP port, as a string.
- * @param tcp_addr Out-parameter: filled with the resolved address on success.
+ * @param addr_out Filled with the resolved DS address on success.
  * @return 0 on success, -1 on failure.
  */
-int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **tcp_addr);
+int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **addr_out);
 
 /**
  * @brief Performs one full request/reply exchange with the DS over TCP.

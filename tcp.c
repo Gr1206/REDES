@@ -8,7 +8,7 @@
 
 #include "tcp.h"
 
-int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **tcp_addr) {
+int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **addr_out) {
     struct addrinfo hints;
     int errcode;
 
@@ -16,7 +16,7 @@ int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **tcp_
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    errcode = getaddrinfo(ds_ip, ds_tcp_port, &hints, tcp_addr);
+    errcode = getaddrinfo(ds_ip, ds_tcp_port, &hints, addr_out);
     if (errcode != 0) {
         fprintf(stderr, "Error getting TCP address\n");
         return -1;
