@@ -8,6 +8,43 @@
 
 #include "udp.h"
 
+int udp_setup(const char *ds_ip, const char *ds_port, int *fd_out, struct addrinfo **addr_out) {
+    struct addrinfo hints, *res;
+    struct timeval tv;
+    int fd, errcode;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    errcode = getaddrinfo(ds_ip, ds_port, &hints, &res);
+    if (errcode != 0) {
+        fprintf(stderr, "Error getting UDP address\n");
+        return -1;
+    }
+
+    fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd == -1) {
+        perror("Error creating UDP socket");
+        freeaddrinfo(res);
+        return -1;
+    }
+
+    // Ensure recvfrom() doesn't hang indefinitely if no reply is received.
+    tv.tv_sec = UDP_TIMEOUT;
+    tv.tv_usec = 0;
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
+        perror("Error setting UDP socket timeout");
+        close(fd);
+        freeaddrinfo(res);
+        return -1;
+    }
+
+    *fd_out = fd;
+    *addr_out = res;
+    return 0;
+}
+
 ssize_t send_and_recv(int fd, struct addrinfo *res, char *request, char *reply_buffer, size_t buffer_len) {
     ssize_t n;
     socklen_t addrlen;

@@ -49,7 +49,6 @@ int main(int argc, char *argv[]){
     };   
     char* DSIP = "193.136.138.142";       //default 
     char* DSPORT = "59000";               //default
-    struct addrinfo hints;
 
 
     signal(SIGPIPE, SIG_IGN);            //ignore SIGPIPE
@@ -101,30 +100,7 @@ int main(int argc, char *argv[]){
     }
     
     // Initial UDP setup
-    // TODO: Logic to be abstracted within the udp module with a udp_setup func, 
-    // analogous to tcp_setup!
-    state.udp_fd = socket(AF_INET, SOCK_DGRAM, 0);  //udp socket
-    if (state.udp_fd == -1) {
-        perror("Error creating UDP socket");
-        controlledExit(&state, 1);
-    }
-
-    // Ensure recvfrom doesn't hang indefinitely if no response is received
-    struct timeval tv;
-    tv.tv_sec = UDP_TIMEOUT;
-    tv.tv_usec = 0;
-    if (setsockopt(state.udp_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
-        perror("Error setting UDP socket timeout");
-        controlledExit(&state, 1);
-    }
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET; //IPv4
-    hints.ai_socktype = SOCK_DGRAM; //UDP
-
-    int errcode = getaddrinfo(DSIP, DSPORT, &hints, &state.ds_addr);
-    if (errcode != 0) { 
-        fprintf(stderr, "Error getting address\n"); 
+    if (udp_setup(DSIP, DSPORT, &state.udp_fd, &state.ds_addr) != 0) {
         controlledExit(&state, 1);
     }
 

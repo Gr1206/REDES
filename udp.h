@@ -13,6 +13,20 @@
 #define UDP_TIMEOUT 5
 
 /**
+ * @brief Creates the UDP socket used to communicate with the DS.
+ *
+ * Resolves the DS's UDP address and creates a persistent UDP socket that is 
+ * used for any UDP communications with the DS.
+ *
+ * @param ds_ip The DS's IP address (or hostname).
+ * @param ds_port The DS's UDP port, as a string.
+ * @param fd_out The created socket, set on success.
+ * @param addr_out The resolved DS address, set on success.
+ * @return 0 on success, -1 on failure.
+ */
+int udp_setup(const char *ds_ip, const char *ds_port, int *fd_out, struct addrinfo **addr_out);
+
+/**
  * @brief Sends a request to the DS and waits for its reply.
  * 
  * Abstracts the sendto + recvfrom logic required by every UDP command
