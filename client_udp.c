@@ -21,8 +21,12 @@
 #include "tcp.h"
 #include "peer.h"
 #include "inputHandlers.h"
-#include "inputValidation.h" //vai sair daqui quando o parse do argv tiver noutro sitio
+#include "inputValidation.h"
 #include "client.h" // quero tentar mudar isto
+
+#define USAGE           "./user -m peerport [-n DSIP] [-p DSport]"
+#define DEFAULT_DS_IP   "193.136.138.142"
+#define DEFAULT_DS_PORT "59000"
 
 volatile sig_atomic_t stop_req = 0;
 
@@ -39,6 +43,67 @@ void controlledExit(AppState *state, int exit_code) {
     exit(exit_code);
 }
 
+/**
+ * @brief Parses the startup user program command line arguments.
+ *
+ * @param argc Arg count (as received by main).
+ * @param argv Arg vector (as received by main).
+ * @param peer_port The validated peer TCP port.
+ * @param ds_ip The DS IP (or hostname).
+ * @param ds_port The validated DS port (as a string).
+ * @return 0 on success, -1 on invalid input.
+ */
+static int parse_startup_args(int argc, char *argv[], int *peer_port,
+                              const char **ds_ip, const char **ds_port) {
+    *peer_port = 0;
+    *ds_ip = DEFAULT_DS_IP;
+    *ds_port = DEFAULT_DS_PORT;
+
+    // Check if user provided a correct number of arguments
+    if (argc % 2 == 0) {
+        printf("Incorrect format: " USAGE "\n");
+        return -1;
+    }
+
+    // ./user -m peerport [-n DSIP] [-p DSport]
+    for (int i = 1; i < argc; i += 2) {
+        if (argv[i][0] != '-' || strlen(argv[i]) != 2) {
+            printf("Incorrect format: " USAGE "\n");
+            return -1;
+        }
+
+        switch (argv[i][1]) {
+            case 'm':
+                if (!checkPortStr(argv[i+1], peer_port)) {
+                    printf("Invalid peer port\n");
+                    return -1;
+                }
+                break;
+            case 'n':
+                *ds_ip = argv[i+1];
+                break;
+            case 'p': {
+                int port;
+                if (!checkPortStr(argv[i+1], &port)) {
+                    printf("Invalid DS port\n");
+                    return -1;
+                }
+                *ds_port = argv[i+1];
+                break;
+            }
+            default:
+                printf("Flag not recognized\n" USAGE "\n");
+                return -1;
+        }
+    }
+
+    if (*peer_port == 0) {
+        printf("Peer port is required\n");
+        return -1;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
@@ -46,58 +111,18 @@ int main(int argc, char *argv[]){
         // Everything else is left as default in the instance (either 0 or NULL)
         .udp_fd = -1, 
         .peer_fd = -1
-    };   
-    char* DSIP = "193.136.138.142";       //default 
-    char* DSPORT = "59000";               //default
-
+    };
+    const char *DSIP;
+    const char *DSPORT;
 
     signal(SIGPIPE, SIG_IGN);            //ignore SIGPIPE
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));          //initialize to zero
     sa.sa_handler = handle_sigint; 
     sigaction(SIGINT, &sa, NULL);        //handle SIGINT
-    
-    // Check if user provided a correct number of arguments
-    //maybe meter numa função esta lógica tambem
-    if (argc % 2 == 0) {
-        printf("Incorrect format: ./user -m peerport [-n DSIP] [-p DSport]\n");
-        exit(1);
-    }
-    // ./user -m peerport [-n DSIP] [-p DSport]
-    for(int i = 1; i < argc; i += 2){
-        if (argv[i][0] != '-' || strlen(argv[i]) != 2) { //look for flag
-            printf("Incorrect format: ./user -m peerport [-n DSIP] [-p DSport]\n");
-            exit(1);
-        }   
-        switch (argv[i][1]){
-            case 'm':
-                if (!checkPortStr(argv[i+1], &state.peer_tcp_port)) {
-                    printf("Invalid peer port\n");
-                    exit(1);
-                }
-                break;
-            case 'n':
-                DSIP = argv[i+1];
-                break;
-            case 'p': {
-                int ds_port;
-                if (!checkPortStr(argv[i+1], &ds_port)) {
-                    printf("Invalid DS port\n");
-                    exit(1);
-                }
-                DSPORT = argv[i+1];
-                break;
-            }
-            default:
-                printf("Flag not recognized\n./user -m peerport [-n DSIP] [-p DSport]\n");
-                exit(1);
-        }
-    }
 
-    if (state.peer_tcp_port == 0) {
-        printf("Peer port is required\n");
+    if (parse_startup_args(argc, argv, &state.peer_tcp_port, &DSIP, &DSPORT) != 0)
         exit(1);
-    }
     
     // Initial UDP setup
     if (udp_setup(DSIP, DSPORT, &state.udp_fd, &state.ds_addr) != 0) {
