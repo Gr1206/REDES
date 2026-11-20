@@ -527,7 +527,6 @@ int where_peer(int fd, struct addrinfo *res, const char *filename, const char *u
     char ip[PEER_IP_FIELD_LEN + 1];
     char port_str[PEER_PORT_FIELD_LEN + 1];
     struct in_addr addr;
-    char *end;
     int header_len = 0;
     int port;
 
@@ -557,12 +556,7 @@ int where_peer(int fd, struct addrinfo *res, const char *filename, const char *u
     if (inet_pton(AF_INET, ip, &addr) != 1)
         return WHERE_ERROR;
 
-    // First char must be a digit, so strtol can't accept a sign.
-    if (!isdigit((unsigned char) port_str[0]))
-        return WHERE_ERROR;
-    port = (int) strtol(port_str, &end, 10);
-    // TODO: We're including an inputValidation function here! Is there a more elegant way to do this?
-    if (*end != '\0' || !checkPort(port))
+    if (!checkPortStr(port_str, &port))
         return WHERE_ERROR;
 
     if (ip_out != NULL)

@@ -66,6 +66,14 @@ int checkFileSize(off_t size);
  *          or filesize in case it is valid
  */
 int fileExists(const char *path);
-    
+
+/**
+ * @brief Check if a string is exactly a valid port (1-65535)
+ * @param s The string to check
+ * @param port The parsed port, to be set only if valid
+ * @return 1 if valid, 0 invalid
+ */
+int checkPortStr(const char *s, int *port);
+
 
 #endif 

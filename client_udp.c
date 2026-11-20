@@ -67,23 +67,29 @@ int main(int argc, char *argv[]){
     }
     // ./user -m peerport [-n DSIP] [-p DSport]
     for(int i = 1; i < argc; i += 2){
-        if (argv[i][0] != '-') { //look for flag
+        if (argv[i][0] != '-' || strlen(argv[i]) != 2) { //look for flag
             printf("Incorrect format: ./user -m peerport [-n DSIP] [-p DSport]\n");
             exit(1);
         }   
         switch (argv[i][1]){
             case 'm':
-                // TODO: Should we change this to strtol? And later cast it to int?
-                //       Strtol allows us to catch malformed input such as "80xyz" 
-                //       or "xyz", while atoi ignores it!
-                state.peer_tcp_port = atoi(argv[i+1]);
+                if (!checkPortStr(argv[i+1], &state.peer_tcp_port)) {
+                    printf("Invalid peer port\n");
+                    exit(1);
+                }
                 break;
             case 'n':
                 DSIP = argv[i+1];
                 break;
-            case 'p':
+            case 'p': {
+                int ds_port;
+                if (!checkPortStr(argv[i+1], &ds_port)) {
+                    printf("Invalid DS port\n");
+                    exit(1);
+                }
                 DSPORT = argv[i+1];
                 break;
+            }
             default:
                 printf("Flag not recognized\n./user -m peerport [-n DSIP] [-p DSport]\n");
                 exit(1);
@@ -95,10 +101,10 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    if (!checkPort(state.peer_tcp_port)) {
-        printf("Invalid peer port\n");
-        exit(1);
-    }
+    // if (!checkPort(state.peer_tcp_port)) {
+    //     printf("Invalid peer port\n");
+    //     exit(1);
+    // }
     
     // Initial UDP setup
     // TODO: Logic to be abstracted within the udp module with a udp_setup func, 

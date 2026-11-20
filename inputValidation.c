@@ -1,4 +1,5 @@
 #include <sys/stat.h>
+#include <errno.h>
 #include "inputValidation.h"
 
 int checkUID(char* uid){
@@ -12,7 +13,6 @@ int checkUID(char* uid){
     }
     return 1; 
 }
-
 
 int checkPassword(char* password){
     int strsize = strlen(password);
@@ -86,6 +86,7 @@ int checkFileSize(off_t size){
     }
     return 1;
 }
+
 int fileExists(const char *path){
     //return -1 caso o file não exista
     //return -2 caso o fileseize seja inválido
@@ -101,4 +102,19 @@ int fileExists(const char *path){
         return -2;
     }
     return fileInfo.st_size;
+}
+
+int checkPortStr(const char *s, int *port) {
+    char *end;
+
+    if (!isdigit((unsigned char) s[0]))
+        return 0;
+
+    errno = 0;
+    long v = strtol(s, &end, 10);
+    if (*end != '\0' || errno == ERANGE || v > 65535 || !checkPort((int) v))
+        return 0;
+
+    *port = (int) v;
+    return 1;
 }
