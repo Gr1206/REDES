@@ -10,6 +10,9 @@
 
 #include "app_state.h"
 
+// TODO: Both of these functions are now used exclusively in client_udp.c! 
+//       Shall we delete this .h file and simply make these functions static?
+
 /**
  * @brief Signal handler for SIGINT
  * @param sig The signal number received

@@ -266,6 +266,9 @@ int main(int argc, char *argv[]){
                 }
             }
 
+            if (state.exit_requested)
+                break;
+                
             print_prompt();
         }
     }

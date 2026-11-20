@@ -45,6 +45,7 @@ typedef struct {
     int udp_fd;                     /**< UDP socket used to communicate with the DS. */
     int peer_fd;                    /**< Listening socket for incoming peer connections. */
     PeerList peer_list;             /**< Peer candidates for the get command to pick from. */
+    int exit_requested;             /**< Signals a user request to exit the app. */
 } AppState;
 
 #endif // APP_STATE_H
