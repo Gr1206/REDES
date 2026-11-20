@@ -179,10 +179,9 @@ void serve_peer(int connfd, AppState *state) {
     close(connfd);
 
     if (outcome == PEER_SERVED || outcome == PEER_REFUSED || outcome == PEER_FAILED)
-        printf("\nPeer request for %s: %s\n> ", request + 4, outcome_message(outcome));
+        printf("\nPeer request for %s: %s\n", request + 4, outcome_message(outcome));
     else
-        printf("\nPeer request: %s\n> ", outcome_message(outcome));
-    fflush(stdout);
+        printf("\nPeer request: %s\n", outcome_message(outcome));
 }
 
 int peer_setup(int port) {

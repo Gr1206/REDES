@@ -104,6 +104,12 @@ static int parse_startup_args(int argc, char *argv[], int *peer_port,
     return 0;
 }
 
+/** @brief Prints the command prompt. */
+static void print_prompt(void) {
+    printf("> ");
+    fflush(stdout);     //to ensure the buffer gets flushed
+}
+
 int main(int argc, char *argv[]){
     // Parses CLI args, sets up the UDP socket to the DS, and runs the
     // interactive command loop.
@@ -145,9 +151,7 @@ int main(int argc, char *argv[]){
 
     // setvbuf(stdin, NULL, _IONBF, 0);
 
-    // TODO: Turn this into a helper?
-    printf("> ");
-    fflush(stdout);     //to ensure the buffer gets flushed
+    print_prompt();
 
     while (!stop_req) {
         fd_set readfds;
@@ -168,11 +172,10 @@ int main(int argc, char *argv[]){
             int connfd = accept(state.peer_fd, NULL, NULL);
             if (connfd == -1) {
                 fprintf(stderr, "\nError accepting peer connection: %s\n", strerror(errno));
-                printf("> ");
-                fflush(stdout);
             } else {
                 serve_peer(connfd, &state);
             }
+            print_prompt();
         }
 
         if(FD_ISSET(STDIN_FILENO, &readfds)) {
@@ -222,8 +225,7 @@ int main(int argc, char *argv[]){
                 }
             }
 
-            printf("> ");
-            fflush(stdout);
+            print_prompt();
         }
     }
     
