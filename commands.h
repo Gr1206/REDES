@@ -51,8 +51,27 @@ void logout(CommandParser *parser);
  */
 void unregister(CommandParser *parser);
 
+/**
+ * @brief Publishes a local file so that other users can download it.
+ *
+ * Sends a PUB request with the file's name, size and a label describing it. 
+ * The file's existence and size must have already been validated locally by 
+ * the caller. Publishing the same filename again simply updates the existing 
+ * published record.
+ *
+ * @param parser The command parser struct containing the command args & current app state
+ * @param fileSize The size of the file to publish (in bytes).
+ */
 void publishFile(CommandParser *parser, int fileSize);
 
+/**
+ * @brief Stops advertising a file previously published by the logged in user.
+ *
+ * Sends a REM request over UDP. The file does not need to exist locally, so a 
+ * file can still be unpublished after being deleted.
+ *
+ * @param parser The command parser struct containing the command args & current app state
+ */
 void removeFile(CommandParser *parser);
 
 /**

@@ -35,19 +35,20 @@
 #define MSG_USER_NOT_LOGGED_IN  "User not logged in"
 #define MSG_INVALID_REQUEST     "Invalid request"
 
-#define MAX_MSG_LENGTH 256
-#define STATUS_CODE_LENGTH 3        // Response status codes are <= 3 chars.
+#define MAX_MSG_LENGTH          256
+#define STATUS_CODE_LENGTH      3       // Response status codes are <= 3 chars.
 
 // versions()-specific constants (unspecified by the protocol).
-#define MAX_TCP_REPLY_LENGTH 16384  // ~16 KB: large enough for >100 peer entries.
-#define PUB_TIME_MAX_LEN 31         // Observed format as returned by the DS: YYYYMMDD-HHMMSS (e.g. 20261224-235959).
+#define MAX_TCP_REPLY_LENGTH    16384   // ~16 KB: large enough for >100 peer entries.
+#define PUB_TIME_MAX_LEN        31      // Observed format as returned by the DS: YYYYMMDD-HHMMSS (e.g. 20261224-235959).
+#define AVAILABILITY_AVL        "AVL"
 
 // list()-specific constants (unspecified by the protocol).
-#define MAX_LIST_REPLY_LENGTH 2048  // Large enough for replies with 50 filenames.
+#define MAX_LIST_REPLY_LENGTH   2048    // Large enough for replies with 50 filenames.
 
 // where_peer()-specific constants.
-#define PEER_IP_FIELD_LEN   16
-#define PEER_PORT_FIELD_LEN 6
+#define PEER_IP_FIELD_LEN       16
+#define PEER_PORT_FIELD_LEN     6
 
 
 // Mapping logic: Status code vs corresponding message (that gets displayed to the user).
@@ -132,7 +133,6 @@ void login(CommandParser *parser) {
     }
 
     snprintf(request, sizeof(request), "LIN %s %s %d\n", parser->args[1], parser->args[2], parser->state->peer_tcp_port);
-    //printf("Sending login request: %s", request);
     if (send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
         return;
 
@@ -168,7 +168,6 @@ void logout(CommandParser *parser) {
     }
 
     snprintf(request, sizeof(request), "LOU %s %s\n", parser->state->user.UID, parser->state->user.password);
-    //printf("Sending logout request: %s", request);
     if (send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1)
         return;
 
@@ -236,13 +235,11 @@ void publishFile(CommandParser *parser, int fileSize) {
 
     snprintf(request, sizeof(request), "PUB %s %s %s %d %s\n", 
     parser->state->user.UID, parser->state->user.password, parser->args[1], fileSize, parser->args[2]);
-    //printf("Sending publish request: %s", request);
     if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
         printf("Failed to send publish request or receive reply from DS\n");
         return;
     }
     
-    //printf("Reply from DS: %s", reply);
     if (sscanf(reply, "%3s %3s", reply_code, status) != 2) {
         printf("Unexpected reply from DS after publish attempt\n");
         return;
@@ -268,8 +265,6 @@ void removeFile(CommandParser *parser){
     }
 
     snprintf(request, sizeof(request), "REM %s %s %s\n", parser->state->user.UID, parser->state->user.password, parser->args[1]);
-    //printf("Sending remove file request: %s", request);
-    //fazer o send
     if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
         printf("Failed to send remove file request or receive reply from DS\n");
         return;
@@ -290,7 +285,7 @@ void removeFile(CommandParser *parser){
 }
 
 void listFiles(CommandParser *parser) {
-    //NÃO É PRECISO LOGIN!!!
+    // No login required - as detailed by the protocol spec.
     
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_LIST_REPLY_LENGTH + 1];
@@ -335,7 +330,7 @@ void listFiles(CommandParser *parser) {
             break;
         }
 
-        // Break the loop if more than 50 files are received (which breaks the protocol)
+        // Break the loop if more than 50 files are received (which breaks the protocol).
         if (files_found == MAX_LIST_ENTRIES) {
             printf("Unexpected reply from DS: more than %d filenames, only the first %d were listed\n", MAX_LIST_ENTRIES, MAX_LIST_ENTRIES);
             break;
@@ -351,7 +346,7 @@ void listFiles(CommandParser *parser) {
 }
 
 void versionsFile(CommandParser *parser, const char *filename) {
-    // NOTE: No need for the user to be logged in, right? TBC!
+    // No login required (as with list) - the spec does not ask for it.
 
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_TCP_REPLY_LENGTH + 1];
@@ -373,6 +368,7 @@ void versionsFile(CommandParser *parser, const char *filename) {
     // TODO: We must check how this behaves against malformed replies such as "RVROK\n"!
     // TODO(2): Regarding the previous todo note, in case it fails... shall we 
     // change the way we parse whitespace?
+    // TODO (UPDATED): Yeah, we do have parsing issues here. Must fix this!
     if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
         printf("Unexpected reply from DS after versions attempt\n");
         return;
@@ -406,23 +402,22 @@ void versionsFile(CommandParser *parser, const char *filename) {
         int matched = sscanf(reply + pos, "%6s %ld %20s %31s %3s%n",
                              uid, &fsize, label, pub_time, availability, 
                              &consumed);
-        if (matched != 5) {
-            // TBC: Is there any odd failure/edge case ending up here that
-            // should warrant a message to the user?
+        if (matched == EOF)
+            break;      // Normal end (only the trailing '\n' was left)
+        if (matched != 5 || !checkUID(uid)) {
+            printf("Unexpected reply from DS: a malformed peer entry was found\n");
             break;
         }
 
-        // TODO: Abstract the availability comparison into a helper function?
-        // TODO: Extract the string constant to a constant of its own!
-        printf("%s | %ld bytes | %s | %s | %s\n", uid, fsize, label, pub_time,
-               strcmp(availability, "AVL") == 0 ? "Available" : "Not available");
+        int available = strcmp(availability, AVAILABILITY_AVL) == 0;
 
-        if (list->count < MAX_PEER_CANDIDATES && checkUID(uid)) {
+        printf("%s | %ld bytes | %s | %s | %s\n", uid, fsize, label, pub_time,
+               available ? "Available" : "Not available");
+
+        if (list->count < MAX_PEER_CANDIDATES) {
             PeerCandidate *p = &list->peers[list->count++];
             snprintf(p->uid, sizeof(p->uid), "%s", uid);
-            // TODO: Abstract the availability comparison into a helper function?
-            // TODO: Extract the string constant to a constant of its own!
-            p->available = strcmp(availability, "AVL") == 0;
+            p->available = available;
         }
 
         peers_found++;
@@ -437,8 +432,7 @@ void versionsFile(CommandParser *parser, const char *filename) {
 }
 
 static int confirmOverwrite(const char *filename) {
-    // TODO: Hardcoded buffer size TBC!
-    char answer[8];
+    char answer[8]; 
 
     printf("%s already exists, overwrite? [y/N] ", filename);
     fflush(stdout);
@@ -479,8 +473,6 @@ void getFile(CommandParser *parser, const char *filename) {
         if (!p->available)
             continue;
 
-        // TODO: This implies we can download from our user when logged out. 
-        //       Does this even make sense?
         if (state->user.loggedIn && strcmp(p->uid, state->user.UID) == 0)
             continue;
 
