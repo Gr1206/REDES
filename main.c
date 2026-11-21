@@ -184,7 +184,11 @@ int main(int argc, char *argv[]){
     CommandParser parser;
     parser.state = &state;
 
-    // setvbuf(stdin, NULL, _IONBF, 0);
+    // With stdin's default buffering, extra lines would sit in the buffer, 
+    // unseen by select. With an unbuffered stdin, fgets reads byte by byte 
+    // up to '\n', leaving any further input in the kernel, where select() 
+    // can still see it.
+    setvbuf(stdin, NULL, _IONBF, 0);
 
     print_prompt();
 
