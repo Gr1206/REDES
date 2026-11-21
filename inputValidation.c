@@ -47,7 +47,6 @@ int checkFilename(char* filename){
         // printf("ponto não está no sítio %c\n", filename[strsize - 4]);
         return 0; //caso o ponto não esteja no sítio suposto
     }
-    //printf("FILENAME : %s\n", filename);
     for (int char_index = 0; char_index < strsize - 4; char_index++){
         if(!checkChar(filename[char_index])) {
             //printf("Char inválido no base name %c\n", filename[char_index]); //mensagem para teste
@@ -66,7 +65,6 @@ int checkFilename(char* filename){
 
 int checkLabel(char* label){
     int labelLen = strlen(label);
-    //printf("Label: %s\n", label);
     if(labelLen < LABEL_MIN_LEN || labelLen > LABEL_MAX_LEN) 
         return 0;
 
@@ -76,7 +74,6 @@ int checkLabel(char* label){
             return 0;
         }
     }
-
     return 1;
 }
 
@@ -87,21 +84,18 @@ int checkFileSize(off_t size){
     return 1;
 }
 
-int fileExists(const char *path){
-    //return -1 caso o file não exista
-    //return -2 caso o fileseize seja inválido
-    //em caso de sucesso return filesize
+int getLocalFileSize(const char *path, long *size) {
     struct stat fileInfo;
-    
-    // TODO: What about directories named, e.g., dir.txt? Are they detected?
-    int res = stat(path, &fileInfo); //SAves info on buffer
-    if (res != 0){
-        return -1;
-    }
-    if (!checkFileSize(fileInfo.st_size)){
-        return -2;
-    }
-    return fileInfo.st_size;
+
+    if (stat(path, &fileInfo) != 0)
+        return LOCAL_FILE_NOT_FOUND;
+    if (!S_ISREG(fileInfo.st_mode))
+        return LOCAL_FILE_NOT_REGULAR;
+    if (!checkFileSize(fileInfo.st_size))
+        return LOCAL_FILE_TOO_LARGE;
+
+    *size = (long) fileInfo.st_size;
+    return LOCAL_FILE_OK;
 }
 
 int checkPortStr(const char *s, int *port) {

@@ -69,7 +69,6 @@ static int read_request(int fd, char *buf, size_t size) {
 
 // Only regular files within the protocol's size limit can be served.
 static int servable(const struct stat *st) {
-    // TODO: To be refactored once the inputValidation function gets fixed!
     return S_ISREG(st->st_mode) && checkFileSize(st->st_size);
 }
 

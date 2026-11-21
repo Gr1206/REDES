@@ -9,6 +9,12 @@
 
 #include "protocol.h"
 
+// getLocalFileSize()-specific constants.
+#define LOCAL_FILE_OK           0
+#define LOCAL_FILE_NOT_FOUND   -1
+#define LOCAL_FILE_NOT_REGULAR -2   // e.g., a directory named "dir.txt"
+#define LOCAL_FILE_TOO_LARGE   -3
+
 /**
  * @brief Check if the UID has 6 digits
  * @param uid The UID to check
@@ -39,7 +45,7 @@ int checkChar(char c);
 
 /**
  * @brief Check if the filename is valid : 24 chars & only letters, digits, - or _
- * check if extension has 3 chars
+ * and check if extension has 3 chars
  * @param filename The filename to check
  * @return 1 if the filename is valid, 0 invalid
  */
@@ -60,12 +66,16 @@ int checkLabel(char* label);
 int checkFileSize(off_t size);
 
 /**
- * @brief Check if a file exists
+ * @brief Gets the size of a local file
+ *
+ * Only files within the protocol's size limit are accepted.
+ * 
  * @param path The path to the file
- * @return -1 if the file does not exist, -2 if the file size is invalid, 
- *          or filesize in case it is valid
+ * @param size The file size in bytes, set only on LOCAL_FILE_OK
+ * @return LOCAL_FILE_OK, LOCAL_FILE_NOT_FOUND, LOCAL_FILE_NOT_REGULAR or 
+ *         LOCAL_FILE_TOO_LARGE
  */
-int fileExists(const char *path);
+int getLocalFileSize(const char *path, long *size);
 
 /**
  * @brief Check if a string is exactly a valid port (1-65535)

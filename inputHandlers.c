@@ -75,16 +75,21 @@ static void parsePublish(CommandParser *parser){
         printf("Invalid label format\n");
         return;
     } //DAR refactor completo a este código
-    int result = fileExists(parser->args[1]);
-    if(result == -1){
-        printf("File does not exist\n");
-        return;
-    } else if(result == -2){
-        printf("Invalid file size\n");
-        return;
+
+    long fileSize;
+    switch (getLocalFileSize(parser->args[1], &fileSize)) {
+        case LOCAL_FILE_NOT_FOUND:
+            printf("File does not exist\n");
+            return;
+        case LOCAL_FILE_NOT_REGULAR:
+            printf("Not a regular file\n");
+            return;
+        case LOCAL_FILE_TOO_LARGE:
+            printf("Invalid file size (too large - max %d bytes)\n", MAX_FILESIZE);
+            return;
     }
     //mudar isto do result ser o fileSize, criar helper e chamar no publish func
-    publishFile(parser, result);
+    publishFile(parser, fileSize);
 }
 
 /**

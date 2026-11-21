@@ -62,7 +62,7 @@ void unregister(CommandParser *parser);
  * @param parser The command parser struct containing the command args & current app state
  * @param fileSize The size of the file to publish (in bytes).
  */
-void publishFile(CommandParser *parser, int fileSize);
+void publishFile(CommandParser *parser, long fileSize);
 
 /**
  * @brief Stops advertising a file previously published by the logged in user.

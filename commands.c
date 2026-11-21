@@ -222,7 +222,7 @@ void unregister(CommandParser *parser) {
 }
 
 //dar refactor ao argumento fileSIze
-void publishFile(CommandParser *parser, int fileSize) {
+void publishFile(CommandParser *parser, long fileSize) {
     char request[MAX_MSG_LENGTH + 1];
     char reply[MAX_MSG_LENGTH + 1];
     char reply_code[STATUS_CODE_LENGTH + 1];
@@ -233,7 +233,7 @@ void publishFile(CommandParser *parser, int fileSize) {
         return;
     }
 
-    snprintf(request, sizeof(request), "PUB %s %s %s %d %s\n", 
+    snprintf(request, sizeof(request), "PUB %s %s %s %ld %s\n", 
     parser->state->user.UID, parser->state->user.password, parser->args[1], fileSize, parser->args[2]);
     if(send_and_recv(parser->state->udp_fd, parser->state->ds_addr, request, reply, sizeof(reply)) == -1){
         printf("Failed to send publish request or receive reply from DS\n");
