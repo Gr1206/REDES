@@ -184,7 +184,12 @@ void logout(CommandParser *parser) {
 
     printf("%s\n", LOOKUP(logout_replies, status));
 
-    if (strcmp(status, STATUS_OK) == 0)
+    // If the DS holds no logged in session (NLG/UNR, i.e., if the same user 
+    // logged out or unregistered elsewhere), ensure the local state gets 
+    // synchronized.
+    if (strcmp(status, STATUS_OK) == 0 ||
+        strcmp(status, STATUS_NOT_LOGGED_IN) == 0 ||
+        strcmp(status, STATUS_NOT_REG) == 0)
         parser->state->user.loggedIn = 0;
 }
 
@@ -217,8 +222,13 @@ void unregister(CommandParser *parser) {
 
     printf("%s\n", LOOKUP(unregister_replies, status));
 
-    if (strcmp(status, STATUS_OK) == 0)
-        parser->state->user.loggedIn = 0; // The DS logs the user out before unregistering it.
+    // If the DS already holds no logged in session (NOK/UNR, i.e., if the 
+    // same user logged out or unregistered elsewhere), ensure the local state 
+    // gets synchronized.
+    if (strcmp(status, STATUS_OK) == 0 ||       // The DS logs the user out before unregistering it.
+        strcmp(status, STATUS_NOK) == 0 ||
+        strcmp(status, STATUS_NOT_REG) == 0)
+        parser->state->user.loggedIn = 0;
 }
 
 //dar refactor ao argumento fileSIze
