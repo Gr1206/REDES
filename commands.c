@@ -99,8 +99,17 @@ static const StatusMsg remove_replies[] = {
     {STATUS_ERR, MSG_INVALID_REQUEST}
 };
 
-// TODO: List replies?
-// TODO: Versions replies?
+static const StatusMsg list_replies[] = {
+    {STATUS_NOK, "No resources are currently known"},
+    {STATUS_ERR, MSG_INVALID_REQUEST},
+};
+
+static const StatusMsg versions_replies[] = {
+    {STATUS_NOK, "No peers currently available for this resource"},
+    {STATUS_ERR, MSG_INVALID_REQUEST},
+};
+
+// TODO: "get" replies?
 
 static const char *lookup_message(const StatusMsg *table, int n, const char *status) {
     for (int i = 0; i < n; i++)
@@ -306,15 +315,9 @@ void listFiles(CommandParser *parser) {
         printf("Unexpected reply code obtained from DS after list attempt: %s\n", reply_code);
         return;
     }
- 
-    if (strcmp(status, STATUS_NOK) == 0) {
-        // TODO: Move this into a StatusMsg struct?
-        printf("No resources are currently known\n");
-        return;
-    }
- 
+
     if (strcmp(status, STATUS_OK) != 0) {
-        printf("Unexpected status obtained from DS after list attempt: %s\n", status);
+        printf("%s\n", LOOKUP(list_replies, status));
         return;
     }
  
@@ -377,14 +380,8 @@ void versionsFile(CommandParser *parser, const char *filename) {
         return;
     }
 
-    if (strcmp(status, STATUS_NOK) == 0) {
-        // TODO: Move this into a StatusMsg struct?
-        printf("No peers currently available for this resource\n");
-        return;
-    }
-
     if (strcmp(status, STATUS_OK) != 0) {
-        printf("Unexpected status obtained from DS after versions attempt: %s\n", status);
+        printf("%s\n", LOOKUP(versions_replies, status));
         return;
     }
 
