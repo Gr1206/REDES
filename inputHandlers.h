@@ -6,8 +6,8 @@
 #define MAX_ARGS 10
 
 typedef struct {
-    char *command; //command executed in the cmd
-    char *args[MAX_ARGS]; //arguments from the cmd command
+    char *command;          // Command input by the user (same as args[0]).
+    char *args[MAX_ARGS];   // Tokens for the full input (including the command).
     int argcount;
     AppState *state;
 } CommandParser;

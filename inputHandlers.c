@@ -28,7 +28,6 @@ static void parseUnreg(CommandParser *parser){
         printf("Invalid number of arguments for unregister: unregister\n");
         return;
     }
-    //unregister(state.udp_fd, state.ds_addr, &state.user);
     unregister(parser);
 }
 
@@ -68,7 +67,6 @@ static void parsePublish(CommandParser *parser){
         printf("Invalid number of arguments for publish: publish filename label\n");
         return;
     }
-    //printf("Arg2: %s\n", args[2]);
     if(!checkFilename(parser->args[1])){
         printf("Invalid filename format\n");
         return;
@@ -78,8 +76,6 @@ static void parsePublish(CommandParser *parser){
         return;
     } //DAR refactor completo a este código
     int result = fileExists(parser->args[1]);
-    //printf("Result of fileExists: %d\n", result);
-
     if(result == -1){
         printf("File does not exist\n");
         return;
