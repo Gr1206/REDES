@@ -41,7 +41,7 @@
 #define MAX_TCP_REPLY_LENGTH 16384  // ~16 KB: large enough for >100 peer entries.
 #define LABEL_MAX_LEN 20
 #define AVAILABILITY_LEN 3          // "AVL" or "NAV".
-#define PUB_TIME_MAX_LEN 31         // TBD: Provisional (publication_time's format/length)?
+#define PUB_TIME_MAX_LEN 31         // Observed format as returned by the DS: YYYYMMDD-HHMMSS (e.g. 20261224-235959).
 
 // list()-specific constants.
 #define FILENAME_MAX_LEN 24         // TODO: Remove it from here? Duplicated in AppState! Or should we keep it here instead?
@@ -50,9 +50,6 @@
 // where_peer()-specific constants.
 #define PEER_IP_FIELD_LEN   16
 #define PEER_PORT_FIELD_LEN 6
-// #define WHERE_FOUND      1          // OK (peer publishing and available)
-// #define WHERE_NOT_FOUND  0          // NOK (peer not publishing and/or unavailable)
-// #define WHERE_ERROR     -1          // ERR (malformed/unexpected reply, transport error)
 
 
 // Mapping logic: Status code vs corresponding message (that gets displayed to the user).
@@ -98,8 +95,7 @@ static const StatusMsg remove_replies[] = {
     {STATUS_NOT_LOGGED_IN, MSG_USER_NOT_LOGGED_IN},
     {STATUS_NOT_REG, MSG_UNREGISTERED_USER},
     {STATUS_WRONG_PWD, MSG_WRONG_PWD},
-    // TODO: "Resource not found" - should cover both cases!
-    {STATUS_NOK, "This file was not published by you"}, //nao existe tb ?
+    {STATUS_NOK, "Resource not found"},
     {STATUS_ERR, MSG_INVALID_REQUEST}
 };
 
@@ -251,8 +247,6 @@ void publishFile(CommandParser *parser, int fileSize) {
     }
 
     printf("%s\n", LOOKUP(publish_replies, status));
-    
-    //verificar replies anomalas por parte do DS
 }
 
 void removeFile(CommandParser *parser){
@@ -336,13 +330,12 @@ void listFiles(CommandParser *parser) {
         // NOTE: Hardcoded field width.
         int matched = sscanf(reply + pos, "%24s%n", filename, &consumed);
         if (matched != 1) {
-            // TBC: Is there any odd failure/edge case ending up here that
-            // should warrant a message to the user?
+            // Normal end of the list
             break;
         }
  
         printf("%s\n", filename);
-        files_found++;  // Ensure this change has no side effects!
+        files_found++;
         // TODO: Shall we break the loop once 50 files are received?
         pos += consumed;
     }
