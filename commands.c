@@ -46,6 +46,7 @@
 // list()-specific constants.
 #define FILENAME_MAX_LEN 24         // TODO: Remove it from here? Duplicated in AppState! Or should we keep it here instead?
 #define MAX_LIST_REPLY_LENGTH 2048  // Large enough for replies with 50 filenames.
+#define MAX_LIST_ENTRIES 50         // Maximum number of filenames listed in an RLS reply.
 
 // where_peer()-specific constants.
 #define PEER_IP_FIELD_LEN   16
@@ -336,10 +337,15 @@ void listFiles(CommandParser *parser) {
             // Normal end of the list
             break;
         }
+
+        // Break the loop if more than 50 files are received (which breaks the protocol)
+        if (files_found == MAX_LIST_ENTRIES) {
+            printf("Unexpected reply from DS: more than %d filenames, only the first %d were listed\n", MAX_LIST_ENTRIES, MAX_LIST_ENTRIES);
+            break;
+        }
  
         printf("%s\n", filename);
         files_found++;
-        // TODO: Shall we break the loop once 50 files are received?
         pos += consumed;
     }
  
