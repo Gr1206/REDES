@@ -4,7 +4,7 @@
 
 int checkUID(char* uid){
     int strsize = strlen(uid);
-    if(strsize != 6) return 0; 
+    if(strsize != UID_LEN) return 0; 
 
     for (int i = 0; i < strsize; i++){
         // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
@@ -16,7 +16,7 @@ int checkUID(char* uid){
 
 int checkPassword(char* password){
     int strsize = strlen(password);
-    if(strsize != 8) return 0;
+    if(strsize != PWD_LEN) return 0;
 
     for (int i = 0; i < strsize; i++){
         // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
@@ -27,7 +27,7 @@ int checkPassword(char* password){
 }
 
 int checkPort(int port){
-    if(port < 1 || port > 65535) return 0;
+    if(port < PORT_MIN || port > PORT_MAX) return 0;
     return 1;
 }
 
@@ -40,10 +40,11 @@ int checkChar(char c){
 int checkFilename(char* filename){
     int strsize = strlen(filename); 
 
-    if (strsize > 24 || strsize < 5) // nome.aaa extensão mais ponto final seriam 4 logo não pode haver fn menor que 5
+    // nome.aaa extensão mais ponto final seriam 4 logo não pode haver fn menor que 5
+    if (strsize > FILENAME_MAX_LEN || strsize < FILENAME_EXT_LEN + 2)
         return 0;
 
-    if (filename[strsize - 4] != '.') {
+    if (filename[strsize - (FILENAME_EXT_LEN + 1)] != '.') {
         // printf("ponto não está no sítio %c\n", filename[strsize - 4]);
         return 0; //caso o ponto não esteja no sítio suposto
     }
@@ -67,7 +68,7 @@ int checkFilename(char* filename){
 int checkLabel(char* label){
     int labelLen = strlen(label);
     //printf("Label: %s\n", label);
-    if(labelLen < 1 || labelLen > 20) 
+    if(labelLen < LABEL_MIN_LEN || labelLen > LABEL_MAX_LEN) 
         return 0;
 
     for (int charIndex = 0; charIndex < labelLen; charIndex++){
@@ -112,7 +113,7 @@ int checkPortStr(const char *s, int *port) {
 
     errno = 0;
     long v = strtol(s, &end, 10);
-    if (*end != '\0' || errno == ERANGE || v > 65535 || !checkPort((int) v))
+    if (*end != '\0' || errno == ERANGE || v > PORT_MAX || !checkPort((int) v))
         return 0;
 
     *port = (int) v;

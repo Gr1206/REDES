@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 
-#define MAX_FILESIZE (10 * 1000 * 1000) 
+#include "protocol.h"
 
 /**
  * @brief Check if the UID has 6 digits

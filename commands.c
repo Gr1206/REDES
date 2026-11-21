@@ -11,6 +11,7 @@
 #include "inputHandlers.h"
 #include "inputValidation.h"
 #include "peer.h"
+#include "protocol.h"
 
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"
 #define LOGOUT_EXPECTED_REPLY_CODE      "RLO"
@@ -37,16 +38,12 @@
 #define MAX_MSG_LENGTH 256
 #define STATUS_CODE_LENGTH 3        // Response status codes are <= 3 chars.
 
-// versions()-specific constants.
+// versions()-specific constants (unspecified by the protocol).
 #define MAX_TCP_REPLY_LENGTH 16384  // ~16 KB: large enough for >100 peer entries.
-#define LABEL_MAX_LEN 20
-#define AVAILABILITY_LEN 3          // "AVL" or "NAV".
 #define PUB_TIME_MAX_LEN 31         // Observed format as returned by the DS: YYYYMMDD-HHMMSS (e.g. 20261224-235959).
 
-// list()-specific constants.
-#define FILENAME_MAX_LEN 24         // TODO: Remove it from here? Duplicated in AppState! Or should we keep it here instead?
+// list()-specific constants (unspecified by the protocol).
 #define MAX_LIST_REPLY_LENGTH 2048  // Large enough for replies with 50 filenames.
-#define MAX_LIST_ENTRIES 50         // Maximum number of filenames listed in an RLS reply.
 
 // where_peer()-specific constants.
 #define PEER_IP_FIELD_LEN   16

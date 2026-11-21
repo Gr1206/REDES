@@ -8,11 +8,8 @@
 
 #include <netdb.h>
 
+#include "protocol.h"
 #include "user.h"
-
-/** @brief Longest valid filename (name, dot and 3-letter extension). */
-// TODO: Shouldn't this use the value defined elsewhere instead?
-#define FILENAME_MAX_LEN 24
 
 /** @brief Maximum number of peers publishing a file (from the versions command). */
 #define MAX_PEER_CANDIDATES 32

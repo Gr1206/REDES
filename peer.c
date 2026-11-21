@@ -10,6 +10,7 @@
 #include "peer.h"
 #include "commands.h"
 #include "inputValidation.h"
+#include "protocol.h"
 
 #define PEER_REQUEST_MAX 64    // Longest valid request is 29 bytes.
 
@@ -186,7 +187,7 @@ void serve_peer(int connfd, AppState *state) {
 
 int peer_setup(int port) {
     struct addrinfo hints, *res;
-    char port_str[6];   // TODO: Port str constant!
+    char port_str[PORT_STR_MAX_LEN + 1];
     int fd, errcode;
 
     // Flag to set the option that prevents bind errors upon app restart.
@@ -272,9 +273,9 @@ static int read_rgt_header(int fd, long *size_out) {
     if (strcmp(hdr, "RGT NOK\n") == 0)
         return PEER_DL_REFUSED;
 
-    // 7-char prefix "RGT OK " + 1-8 digits (MAX_FILESIZE has 8) + a trailing whitespace char.
+    // 7-char prefix "RGT OK " + 1 to 8 digits (FSIZE_MAX_DIGITS is 8) + a trailing whitespace char.
     int digits = (int) len - 8;
-    if (strncmp(hdr, "RGT OK ", 7) != 0 || hdr[len - 1] != ' ' || digits < 1 || digits > 8) {
+    if (strncmp(hdr, "RGT OK ", 7) != 0 || hdr[len - 1] != ' ' || digits < 1 || digits > FSIZE_MAX_DIGITS) {
         fprintf(stderr, "Malformed reply from peer\n");
         return PEER_DL_FAILED;
     }
@@ -346,7 +347,7 @@ static int save_body(int fd, const char *filename, long size) {
 static int peer_connect(const char *ip, int port) {
     struct addrinfo hints, *res;
     struct timeval tv;
-    char port_str[6];   // TODO: Port str constant!
+    char port_str[PORT_STR_MAX_LEN + 1];
     int fd, errcode;
 
     snprintf(port_str, sizeof(port_str), "%d", port);

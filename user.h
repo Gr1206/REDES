@@ -6,11 +6,7 @@
  * @brief Representation of the currently logged-in user.
  */
 
-/** @brief Required UID length (6 decimal digits, per the protocol). */
-#define UID_LEN 6
-
-/** @brief Required password length (8 alphanumeric characters). */
-#define PWD_LEN 8
+#include "protocol.h"
 
 /**
  * @brief State of the user session.
