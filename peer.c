@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "peer.h"
 #include "commands.h"
@@ -171,11 +172,13 @@ void serve_peer(int connfd, AppState *state) {
     tv.tv_sec = PEER_TIMEOUT;
     tv.tv_usec = 0;
     if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1 ||
-        setsockopt(connfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1)
-        outcome = PEER_FAILED;
-    else
-        outcome = handle_request(connfd, state, request);
+        setsockopt(connfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
+        fprintf(stderr, "\nError setting peer socket timeout: %s\n", strerror(errno));
+        close(connfd);
+        return;
+    }
 
+    outcome = handle_request(connfd, state, request);
     close(connfd);
 
     if (outcome == PEER_SERVED || outcome == PEER_REFUSED || outcome == PEER_FAILED)
