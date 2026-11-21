@@ -239,36 +239,14 @@ int main(int argc, char *argv[]){
                 token = strtok(NULL, " \n");
             }
 
-            if(parser.argcount > 0) {
-                char *command = parser.args[0];
-                parser.command = command;
-                if(strcmp(command, "login") == 0) {
-                    parseLogin(&parser);
-                } else if(strcmp(command, "unregister") == 0) {
-                parseUnreg(&parser);
-                } else if(strcmp(command, "logout") == 0) {
-                    parseLogout(&parser);
-                } else if(strcmp(command, "exit") == 0) {
-                    parseExit(&parser);
-                } else if(strcmp(command, "publish") == 0) {
-                    parsePublish(&parser);
-                } else if(strcmp(command, "remove") == 0){
-                    parseRemoveF(&parser);
-                } else if(strcmp(command, "list") == 0){
-                    parseListF(&parser);
-                } else if(strcmp(command, "versions") == 0){
-                    parseVersionsF(&parser);
-                } else if(strcmp(command, "get") == 0){
-                    parseGetF(&parser);
-                } else {
-                    // TODO: To be refactored?
-                    printf("Command not recognized\nList of valid commands:\n-login\n-logout\n-unregister\n-publish\n-remove\n-list\n-versions\n-get\n-exit\n");
-                }
+            if (parser.argcount > 0) {
+                parser.command = parser.args[0];
+                executeCommand(&parser);
             }
 
             if (state.exit_requested)
                 break;
-                
+
             print_prompt();
         }
     }

@@ -12,57 +12,16 @@ typedef struct {
     AppState *state;
 } CommandParser;
 
-
 /**
- * @brief Parse the login information, and calls login protocol function
+ * @brief Runs a specific command.
+ *
+ * Calls the command's handler function, which performs command-specific 
+ * argument validation and runs the corresponding protocol logic, if 
+ * successful.
+ *
+ * @param parser The command parser containing the command, its arguments and the app state.
  */
-void parseLogin(CommandParser *parser);
-
-/**
- * @brief Parse the unregister information, and calls unregister protocol function
- */
-void parseUnreg(CommandParser *parser);
-
-/**
- * @brief Parse the logout information, and calls logout protocol function
- */
-void parseLogout(CommandParser *parser);
-
-/**
- * @brief Parses the exit command and calls the exit function
- * @param parser The command parser containing the command and its arguments.
- */
-void parseExit(CommandParser *parser);
-
-/**
- * @brief Parse the publish information, and calls publish protocol function
- * @param parser The command parser containing the publish command and its arguments.
- */
-void parsePublish(CommandParser *parser);
-
-/**
- * @brief Parse the remove file information, and calls remove file protocol function
- * @param parser The command parser containing the remove file command and its arguments.
- */
-void parseRemoveF(CommandParser *parser);
-
-/**
- * @brief Parses the list file command args, and calls its protocol function
- * @param parser The command parser containing the command and its arguments.
- */
-void parseListF(CommandParser *parser);
-
-/**
- * @brief Parses the file versions command args, and calls its protocol function
- * @param parser The command parser containing the command and its arguments.
- */
-void parseVersionsF(CommandParser *parser);
-
-/**
- * @brief Parses the get file command args, and calls its protocol function
- * @param parser The command parser containing the command and its arguments.
- */
-void parseGetF(CommandParser *parser);
+void executeCommand(CommandParser *parser);
 
 
 #endif

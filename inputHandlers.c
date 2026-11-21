@@ -1,9 +1,13 @@
 #include <stdio.h>
+#include <string.h>
 #include "inputHandlers.h"
 #include "inputValidation.h"
 #include "commands.h"
 
-void parseLogin(CommandParser *parser){
+/**
+ * @brief Parse the login information, and calls login protocol function
+ */
+static void parseLogin(CommandParser *parser){
     if(parser->argcount != 3) {    
         printf("Invalid number of arguments for login: login UID password\n");
         return;
@@ -16,7 +20,10 @@ void parseLogin(CommandParser *parser){
     }
 }
 
-void parseUnreg(CommandParser *parser){
+/**
+ * @brief Parse the unregister information, and calls unregister protocol function
+ */
+static void parseUnreg(CommandParser *parser){
     if(parser->argcount != 1){
         printf("Invalid number of arguments for unregister: unregister\n");
         return;
@@ -25,7 +32,10 @@ void parseUnreg(CommandParser *parser){
     unregister(parser);
 }
 
-void parseLogout(CommandParser *parser){
+/**
+ * @brief Parse the logout information, and calls logout protocol function
+ */
+static void parseLogout(CommandParser *parser){
     if(parser->argcount != 1){
         printf("Invalid number of arguments for logout: logout\n");
         return;
@@ -33,7 +43,11 @@ void parseLogout(CommandParser *parser){
     logout(parser);
 }
 
-void parseExit(CommandParser *parser){
+/**
+ * @brief Parses the exit command and calls the exit function
+ * @param parser The command parser containing the command and its arguments.
+ */
+static void parseExit(CommandParser *parser){
     if(parser->argcount != 1){
         printf("Invalid number of arguments for exit: exit\n");
         return;
@@ -45,7 +59,11 @@ void parseExit(CommandParser *parser){
     parser->state->exit_requested = 1;
 }
 
-void parsePublish(CommandParser *parser){
+/**
+ * @brief Parse the publish information, and calls publish protocol function
+ * @param parser The command parser containing the publish command and its arguments.
+ */
+static void parsePublish(CommandParser *parser){
      if(parser->argcount != 3){
         printf("Invalid number of arguments for publish: publish filename label\n");
         return;
@@ -73,7 +91,11 @@ void parsePublish(CommandParser *parser){
     publishFile(parser, result);
 }
 
-void parseRemoveF(CommandParser *parser){
+/**
+ * @brief Parse the remove file information, and calls remove file protocol function
+ * @param parser The command parser containing the remove file command and its arguments.
+ */
+static void parseRemoveF(CommandParser *parser){
     if(parser->argcount != 2){
         printf("Invalid number of arguments for remove: remove filename\n");
         return;
@@ -85,7 +107,11 @@ void parseRemoveF(CommandParser *parser){
     removeFile(parser);
 }
 
-void parseListF(CommandParser *parser){
+/**
+ * @brief Parses the list file command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
+ */
+static void parseListF(CommandParser *parser){
     if(parser->argcount != 1){
         printf("Invalid number of arguments for list: list\n");
         return;
@@ -93,7 +119,11 @@ void parseListF(CommandParser *parser){
     listFiles(parser);
 }
 
-void parseVersionsF(CommandParser *parser){
+/**
+ * @brief Parses the file versions command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
+ */
+static void parseVersionsF(CommandParser *parser){
     if(parser->argcount != 2){
         printf("Invalid number of arguments for versions: versions filename\n");
         return;
@@ -105,7 +135,11 @@ void parseVersionsF(CommandParser *parser){
     versionsFile(parser, parser->args[1]);
 }
 
-void parseGetF(CommandParser *parser){
+/**
+ * @brief Parses the get file command args, and calls its protocol function
+ * @param parser The command parser containing the command and its arguments.
+ */
+static void parseGetF(CommandParser *parser){
     if(parser->argcount != 2){
         printf("Invalid number of arguments for get: get filename\n");
         return;
@@ -115,4 +149,41 @@ void parseGetF(CommandParser *parser){
         return;
     }
     getFile(parser, parser->args[1]);
+}
+
+// Command mapping logic: command vs corresponding function (and usage format).
+typedef struct {
+    const char *name;
+    void (*handler)(CommandParser *);
+    const char *usage;
+} Command;
+
+static const Command commandTable[] = {
+    {"login",       parseLogin,     "login <UID> <password>"},
+    {"logout",      parseLogout,    "logout"},
+    {"unregister",  parseUnreg,     "unregister"},
+    {"publish",     parsePublish,   "publish <filename> <label>"},
+    {"remove",      parseRemoveF,   "remove <filename>"},
+    {"list",        parseListF,     "list"},
+    {"versions",    parseVersionsF, "versions <filename>"},
+    {"get",         parseGetF,      "get <filename>"},
+    {"exit",        parseExit,      "exit"},
+};
+
+#define NUM_COMMANDS (sizeof(commandTable) / sizeof(commandTable[0]))
+
+static void printCommandList(void) {
+    printf("Command not recognized\nList of valid commands:\n");
+    for (size_t i = 0; i < NUM_COMMANDS; i++)
+        printf("- %s\n", commandTable[i].usage);
+}
+
+void executeCommand(CommandParser *parser) {
+    for (size_t i = 0; i < NUM_COMMANDS; i++) {
+        if (strcmp(parser->command, commandTable[i].name) == 0) {
+            commandTable[i].handler(parser);
+            return;
+        }
+    }
+    printCommandList();
 }
