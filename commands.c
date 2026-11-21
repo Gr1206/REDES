@@ -10,7 +10,7 @@
 #include "tcp.h"
 #include "inputHandlers.h"
 #include "inputValidation.h"
-#include "peer.h"
+#include "peer_client.h"
 #include "protocol.h"
 
 #define LOGIN_EXPECTED_REPLY_CODE       "RLI"

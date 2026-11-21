@@ -19,7 +19,7 @@
 #include "app_state.h"
 #include "udp.h"
 #include "tcp.h"
-#include "peer.h"
+#include "peer_server.h"
 #include "inputHandlers.h"
 #include "inputValidation.h"
 #include "client.h" // quero tentar mudar isto
