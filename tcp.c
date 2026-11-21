@@ -25,10 +25,23 @@ int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **addr
     return 0;
 }
 
+int write_all(int fd, const void *buf, size_t len) {
+    const char *p = buf;
+    size_t written = 0;
+
+    while (written < len) {
+        ssize_t n = write(fd, p + written, len - written);
+        if (n <= 0)
+            return -1;
+        written += (size_t) n;
+    }
+    return 0;
+}
+
 ssize_t tcp_exchange(struct addrinfo *tcp_addr, const char *request, char *reply_buffer, size_t buffer_len) {
     int fd;
     ssize_t n;
-    size_t written, req_len, total;
+    size_t total;
     struct timeval tv;
 
     fd = socket(tcp_addr->ai_family, tcp_addr->ai_socktype, tcp_addr->ai_protocol);
@@ -54,17 +67,10 @@ ssize_t tcp_exchange(struct addrinfo *tcp_addr, const char *request, char *reply
         return -1;
     }
 
-    // Since write() may send fewer bytes than requested, a loop is required.
-    req_len = strlen(request);
-    written = 0;
-    while (written < req_len) {
-        n = write(fd, request + written, req_len - written);
-        if (n == -1) {
-            perror("Error sending request");
-            close(fd);
-            return -1;
-        }
-        written += (size_t) n;
+    if (write_all(fd, request, strlen(request)) == -1) {
+        perror("Error sending request");
+        close(fd);
+        return -1;
     }
 
     // Reads until:

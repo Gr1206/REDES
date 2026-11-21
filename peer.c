@@ -11,6 +11,7 @@
 #include "peer.h"
 #include "commands.h"
 #include "inputValidation.h"
+#include "tcp.h"
 #include "protocol.h"
 
 #define PEER_REQUEST_MAX 64    // Longest valid request is 29 bytes.
@@ -26,18 +27,6 @@
 #define PEER_REFUSED    3      // Valid request, but unserved (RGT NOK).
 #define PEER_FAILED     4      // Failure while replying (socket error, file changed...).
 
-// write() may send fewer bytes than requested, so a loop is required.
-// TODO: Shall we abstract this within tcp.h as well? Maybe adding a verbose optional arg?
-static int write_all(int fd, const char *buf, size_t len) {
-    size_t written = 0;
-    while (written < len) {
-        ssize_t n = write(fd, buf + written, len - written);
-        if (n <= 0)
-            return -1;
-        written += (size_t) n;
-    }
-    return 0;
-}
 
 static void send_status(int fd, const char *status) {
     char reply[16];

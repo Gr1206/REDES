@@ -42,4 +42,17 @@ int tcp_setup(const char *ds_ip, const char *ds_tcp_port, struct addrinfo **addr
  */
 ssize_t tcp_exchange(struct addrinfo *tcp_addr, const char *request, char *reply_buffer, size_t buffer_len);
 
+/**
+ * @brief Writes exactly len bytes to fd, looping over partial writes.
+ *
+ * Since write() may send fewer bytes than requested, a loop is required. 
+ * Works on any file descriptor (i.e., sockets, files, etc). 
+ *
+ * @param fd The file descriptor to write to.
+ * @param buf The bytes to write.
+ * @param len Number of bytes to write.
+ * @return 0 on success, -1 on failure.
+ */
+int write_all(int fd, const void *buf, size_t len);
+
 #endif // TCP_H
