@@ -7,8 +7,8 @@ int checkUID(char* uid){
     if(strsize != UID_LEN) return 0; 
 
     for (int i = 0; i < strsize; i++){
-        // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
-        if(!isdigit(uid[i]))
+        // Cast to unsigned to prevent undefined behaviour for bytes >= 128.
+        if (!isdigit((unsigned char) uid[i]))
             return 0;
     }
     return 1; 
@@ -19,8 +19,8 @@ int checkPassword(char* password){
     if(strsize != PWD_LEN) return 0;
 
     for (int i = 0; i < strsize; i++){
-        // TODO: Shall we cast to unsigned char? Undefined behaviour for bytes >= 128!
-        if(!isalnum(password[i]))
+        // Cast to unsigned to prevent undefined behaviour for bytes >= 128.
+        if (!isalnum((unsigned char) password[i]))
             return 0;
     }
     return 1; 
@@ -32,9 +32,8 @@ int checkPort(int port){
 }
 
 int checkChar(char c){
-    // TODO: It was casting the result rather than the argument. Undefined behaviour for bytes >= 128!
-    // TODO: Check checkUID and checkPassword as well
-    return (unsigned char)isalnum(c) || c == '_' || c == '-'; 
+    // Cast to unsigned to prevent undefined behaviour for bytes >= 128.
+    return isalnum((unsigned char) c) || c == '_' || c == '-';
 }
 
 int checkFilename(char* filename){
