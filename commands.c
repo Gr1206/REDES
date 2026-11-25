@@ -294,6 +294,27 @@ void removeFile(CommandParser *parser){
     
 }
 
+/**
+ * @brief Parses the reply header from the DS and extracts the reply code, status, and header length. Checking malformed & unexpected replies
+ * @param reply The reply string received from the DS.
+ * @param reply_code Buffer to store the extracted reply code
+ * @param status Buffer to store the extracted status
+ * @param header_len Pointer to an integer to store the length of the header
+ * @return 0 if the header was successfully parsed, 1 if the reply is malformed or unexpected
+ */
+static int parseReplyHeader(const char *reply, char *reply_code, char* status, int *header_len){
+    if (sscanf(reply, "%3s %3s%n", reply_code, status, header_len) != 2 ||
+        strlen(reply_code) != 3 || isspace((unsigned char)reply[0]) || 
+        reply[3] != ' ' || isspace((unsigned char)reply[4]) || 
+        (reply[*header_len] != '\n' && reply[*header_len] != ' ')) {
+        //printf("Unexpected reply from DS\n");
+        //TO DO: SPECIFIC MESSAGES ABOUT THE GIVEN COMMAND PASSED AS ARGUMENT?
+        // IDEA : RETURN 1 AND THE COMMAND FUNCTION DEALS WITH THE MESSAGE!!
+        return 1;
+    }
+    return 0;
+}
+
 void listFiles(CommandParser *parser) {
     // No login required - as detailed by the protocol spec.
     
@@ -309,11 +330,16 @@ void listFiles(CommandParser *parser) {
         return;
  
     // NOTE: Hardcoded error code size.
-    if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
+    /*if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
+        printf("Unexpected reply from DS after list attempt\n");
+        return;
+    } */
+    
+    if(parseReplyHeader(reply, reply_code, status, &header_len)){
         printf("Unexpected reply from DS after list attempt\n");
         return;
     }
- 
+
     if (strcmp(reply_code, LIST_EXPECTED_REPLY_CODE) != 0) {
         printf("Unexpected reply code obtained from DS after list attempt: %s\n", reply_code);
         return;
@@ -379,10 +405,15 @@ void versionsFile(CommandParser *parser, const char *filename) {
     // TODO(2): Regarding the previous todo note, in case it fails... shall we 
     // change the way we parse whitespace?
     // TODO (UPDATED): Yeah, we do have parsing issues here. Must fix this!
-    if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
+/*     if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2) {
+        printf("Unexpected reply from DS after versions attempt\n");
+        return;
+    } */
+    if(parseReplyHeader(reply, reply_code, status, &header_len)){
         printf("Unexpected reply from DS after versions attempt\n");
         return;
     }
+
 
     if (strcmp(reply_code, VERSIONS_EXPECTED_REPLY_CODE) != 0) {
         printf("Unexpected reply code obtained from DS after versions attempt: %s\n", reply_code);
@@ -533,6 +564,7 @@ int where_peer(int fd, struct addrinfo *res, const char *filename, const char *u
     // NOTE: Hardcoded error code size.
     if (sscanf(reply, "%3s %3s%n", reply_code, status, &header_len) != 2)
         return WHERE_ERROR;
+        
 
     if (strcmp(reply_code, WHERE_EXPECTED_REPLY_CODE) != 0)
         return WHERE_ERROR;

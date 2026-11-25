@@ -212,7 +212,6 @@ int main(int argc, char *argv[]){
 
         int maxfd = (state.peer_fd > STDIN_FILENO) ? state.peer_fd : STDIN_FILENO;
 
-        // TODO: We need select to have a timeout as well, as stated in class by the professor!
         if (select(maxfd + 1, &readfds, NULL, NULL, &selectTv) == -1) {
             if (errno == EINTR)
                 continue;   // SIGINT

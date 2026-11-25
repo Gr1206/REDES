@@ -163,6 +163,7 @@ static int peer_connect(const char *ip, int port) {
     }
 
     // TODO: Connect might also time out - same as in tcp_exchange!
+    // NOTE : ACHO QUE É UM POUCO COMPLICADO DE IMPLEMENTAR para a utiildade que pode ter
     if (connect(fd, res->ai_addr, res->ai_addrlen) == -1) {
         perror("Error connecting to peer");
         freeaddrinfo(res);
