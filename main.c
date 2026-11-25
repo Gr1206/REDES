@@ -22,7 +22,6 @@
 #include "peer_server.h"
 #include "inputHandlers.h"
 #include "inputValidation.h"
-#include "client.h" // quero tentar mudar isto
 
 #define USAGE           "./user -m peerport [-n DSIP] [-p DSport]"
 #define DEFAULT_DS_IP   "193.136.138.142"
@@ -32,15 +31,24 @@
 #define INPUT_OK        0
 #define INPUT_TOO_LONG  1
 #define INPUT_EOF      -1
-
+#define SELECT_TIMEOUT  5
 volatile sig_atomic_t stop_req = 0;
 
-void handle_sigint(int sig) {
+/**
+ * @brief Signal handler for SIGINT
+ * @param sig The signal number received
+ */
+static void handle_sigint(int sig) {
     (void)sig;
     stop_req = 1; //SIGINT received
 }
 
-void controlledExit(AppState *state, int exit_code) {
+/**
+ * @brief Controlled exit of the application
+ * @param state The shared app state object
+ * @param exit_code The exit code to return
+ */
+static void controlledExit(AppState *state, int exit_code) {
     if(state->ds_addr != NULL) freeaddrinfo(state->ds_addr);
     if(state->ds_tcp_addr != NULL) freeaddrinfo(state->ds_tcp_addr);
     if(state->udp_fd >= 0) close(state->udp_fd); //close the socket if still open
@@ -192,15 +200,20 @@ int main(int argc, char *argv[]){
 
     print_prompt();
 
+
     while (!stop_req) {
         fd_set readfds;
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(state.peer_fd, &readfds);
+        struct timeval selectTv;
+        selectTv.tv_sec = SELECT_TIMEOUT;
+        selectTv.tv_usec = 0;
+
         int maxfd = (state.peer_fd > STDIN_FILENO) ? state.peer_fd : STDIN_FILENO;
 
         // TODO: We need select to have a timeout as well, as stated in class by the professor!
-        if (select(maxfd + 1, &readfds, NULL, NULL, NULL) == -1) {
+        if (select(maxfd + 1, &readfds, NULL, NULL, &selectTv) == -1) {
             if (errno == EINTR)
                 continue;   // SIGINT
             perror("Error waiting for input");
